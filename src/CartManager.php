@@ -66,6 +66,7 @@ final class CartManager
 	public function buyProduct(Product $product, ?ProductVariant $variant, int $count = 1): CartItem
 	{
 		$cart = $this->getCart(true);
+		assert($cart !== null);
 		if ($variant === null && $product->isVariantProduct() === true) {
 			throw new \InvalidArgumentException('Please select variant for product "' . $product->getName() . '" (' . $product->getId() . ').');
 		}

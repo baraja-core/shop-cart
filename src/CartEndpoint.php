@@ -76,6 +76,9 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
+	/**
+	 * @param string[] $variantOptions
+	 */
 	public function postCheckVariantStatus(int $productId, array $variantOptions = []): void
 	{
 		/** @var Product $product */
@@ -412,16 +415,20 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
+	/**
+	 * @return array{name: string, id: string, price: string, brand: string, category: string|null, variant: string|null, quantity: int}
+	 */
 	private function getDataLayer(Product $product, ?ProductVariant $variant = null, int $count = 1): array
 	{
+		$mainCategory = $product->getMainCategory();
 		if ($variant === null) {
 			return [
 				'name' => (string) $product->getName(),
 				'id' => (string) $product->getId(),
 				'price' => (string) $product->getPrice(),
 				'brand' => 'CLEVER MINDS',
-				'category' => $product->getMainCategory()
-					? (string) $product->getMainCategory()->getName()
+				'category' => $mainCategory !== null
+					? (string) $mainCategory->getName()
 					: null,
 				'variant' => null,
 				'quantity' => $count,
@@ -433,8 +440,8 @@ final class CartEndpoint extends BaseEndpoint
 			'id' => $product->getId() . '-' . $variant->getId(),
 			'price' => (string) $variant->getPrice(),
 			'brand' => 'CLEVER MINDS',
-			'category' => $product->getMainCategory()
-				? (string) $product->getMainCategory()->getName()
+			'category' => $mainCategory !== null
+				? (string) $mainCategory->getName()
 				: null,
 			'variant' => $variant->getLabel(),
 			'quantity' => $count,

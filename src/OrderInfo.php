@@ -34,7 +34,7 @@ final class OrderInfo
 
 
 	/**
-	 * @return array{firstName: string, lastName: string, street: string, city: string, zip: string, companyName: string, ic: string, dic}
+	 * @return array{firstName: string, lastName: string, street: string, city: string, zip: string, companyName: string, ic: string, dic: string}
 	 */
 	public function toArray(OrderInfoAddress $address): array
 	{
