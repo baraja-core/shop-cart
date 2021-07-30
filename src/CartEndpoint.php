@@ -14,11 +14,11 @@ use Baraja\Shop\Customer\CustomerManager;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
 use Baraja\Shop\Payment\Entity\Payment;
-use Baraja\StructuredApi\Attributes\PublicEndpoint;
-use Baraja\StructuredApi\BaseEndpoint;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductImage;
 use Baraja\Shop\Product\Entity\ProductVariant;
+use Baraja\StructuredApi\Attributes\PublicEndpoint;
+use Baraja\StructuredApi\BaseEndpoint;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 

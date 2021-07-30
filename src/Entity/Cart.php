@@ -49,7 +49,7 @@ class Cart
 	public function __construct(string $identifier)
 	{
 		$this->identifier = $identifier;
-		$this->insertedDate = new \DateTimeImmutable();
+		$this->insertedDate = new \DateTimeImmutable;
 		$this->items = new ArrayCollection;
 	}
 

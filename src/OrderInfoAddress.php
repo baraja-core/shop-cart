@@ -25,7 +25,7 @@ final class OrderInfoAddress
 
 
 	/**
-	 * @return array{street: string, city: string, zip: string, companyName: string, ic: string, dic}
+	 * @return array{street: string, city: string, zip: string, companyName: string, ic: string, dic: string}
 	 */
 	public function toArray(): array
 	{

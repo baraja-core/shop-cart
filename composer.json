@@ -10,8 +10,11 @@
 	],
 	"require": {
 		"php": "^8.0",
+		"baraja-core/shop-product": "^1.0",
 		"baraja-core/shop-delivery": "^1.0",
-		"baraja-core/shop-payment": "^1.0"
+		"baraja-core/shop-payment": "^1.0",
+		"baraja-core/shop-customer": "^1.0",
+		"nette/security": "^3.0"
 	},
 	"require-dev": {
 		"phpstan/phpstan": "^0.12.74",
