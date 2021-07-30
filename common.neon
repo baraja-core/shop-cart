@@ -1,0 +1,2 @@
+extensions:
+	shopCart: Baraja\Shop\Cart\ShopCartExtension

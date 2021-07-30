@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\Entity;
 
 
-interface Order
+interface OrderNumber
 {
 	public function getId(): ?int;
 

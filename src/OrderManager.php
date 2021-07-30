@@ -6,9 +6,9 @@ namespace Baraja\Shop\Cart;
 
 
 use Baraja\Shop\Cart\Entity\Cart;
-use Baraja\Shop\Cart\Entity\Order;
+use Baraja\Shop\Cart\Entity\OrderNumber;
 
 interface OrderManager
 {
-	public function createOrder(OrderInfo $orderInfo, Cart $cart): Order;
+	public function createOrder(OrderInfo $orderInfo, Cart $cart): OrderNumber;
 }
