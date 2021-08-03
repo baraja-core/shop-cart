@@ -23,10 +23,10 @@ class Cart
 	#[ORM\ManyToOne(targetEntity: Customer::class)]
 	private ?Customer $customer = null;
 
-	/** @ORM\ManyToOne(targetEntity="Delivery") */
+	#[ORM\ManyToOne(targetEntity: Delivery::class)]
 	private ?Delivery $delivery = null;
 
-	/** @ORM\ManyToOne(targetEntity="Payment") */
+	#[ORM\ManyToOne(targetEntity: Payment::class)]
 	private ?Payment $payment = null;
 
 	#[ORM\Column(type: 'integer', nullable: true)]
