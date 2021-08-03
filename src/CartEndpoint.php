@@ -14,6 +14,7 @@ use Baraja\Shop\Customer\CustomerManager;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
 use Baraja\Shop\Payment\Entity\Payment;
+use Baraja\Shop\Price\PriceRendererInterface;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductImage;
 use Baraja\Shop\Product\Entity\ProductVariant;
@@ -30,7 +31,7 @@ final class CartEndpoint extends BaseEndpoint
 		private CustomerManager $customerManager,
 		private OrderManager $orderManager,
 		private EntityManager $entityManager,
-		private PriceRenderer $priceRenderer,
+		private PriceRendererInterface $priceRenderer,
 	) {
 	}
 
