@@ -107,7 +107,7 @@ class Cart
 	public function getItemsPrice(bool $withVat = true): float
 	{
 		$sum = 0;
-		foreach ($this->items as $item) {
+		foreach ($this->getItems() as $item) {
 			$sum += $withVat ? $item->getPrice() : $item->getPriceWithoutVat();
 		}
 
@@ -142,17 +142,34 @@ class Cart
 
 
 	/**
-	 * @return CartItem[]|Collection
+	 * @return array<int, CartItem>
 	 */
-	public function getItems()
+	public function getItems(): array
 	{
-		return $this->items;
+		$return = [];
+		foreach ($this->items as $item) {
+			if ($item->isActive() === false) {
+				continue;
+			}
+			$return[] = $item;
+		}
+
+		return $return;
+	}
+
+
+	/**
+	 * @return array<int, CartItem>
+	 */
+	public function getAllItems(): array
+	{
+		return $this->items->toArray();
 	}
 
 
 	public function isEmpty(): bool
 	{
-		return count($this->items->toArray()) === 0;
+		return $this->getItems() === [];
 	}
 
 

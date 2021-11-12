@@ -37,21 +37,4 @@ final class CartItemRepository extends EntityRepository
 
 		return $cartItem;
 	}
-
-
-	public function getItemsCount(string $identifier): int
-	{
-		$count = $this->createQueryBuilder('cartItem')
-			->select('COUNT(cartItem)')
-			->leftJoin('cartItem.cart', 'cart')
-			->where('cart.identifier = :identifier')
-			->setParameter('identifier', $identifier)
-			->getQuery()
-			->getSingleScalarResult();
-		if (is_numeric($count)) {
-			return (int) $count;
-		}
-
-		return 0;
-	}
 }

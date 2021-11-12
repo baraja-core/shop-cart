@@ -18,9 +18,12 @@ final class CartRepository extends EntityRepository
 	{
 		/** @phpstan-ignore-next-line */
 		return $this->createQueryBuilder('cart')
+			->select('cart, cartItem, product, productVariant')
+			->leftJoin('cart.items', 'cartItem')
+			->leftJoin('cartItem.product', 'product')
+			->leftJoin('cartItem.variant', 'productVariant')
 			->andWhere('cart.identifier = :identifier')
 			->setParameter('identifier', $identifier)
-			->setMaxResults(1)
 			->getQuery()
 			->getSingleResult();
 	}

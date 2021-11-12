@@ -25,6 +25,8 @@ final class CartManager
 {
 	private SessionProvider $sessionProvider;
 
+	private CartSecondLevelCache $secondLevelCache;
+
 
 	public function __construct(
 		private EntityManagerInterface $entityManager,
@@ -38,6 +40,7 @@ final class CartManager
 		} else {
 			$this->sessionProvider = $sessionProvider;
 		}
+		$this->secondLevelCache = new CartSecondLevelCache;
 	}
 
 
@@ -49,22 +52,26 @@ final class CartManager
 
 	public function getCart(bool $flush = true): ?Cart
 	{
-		try {
-			/** @var CartRepository $cartRepo */
-			$cartRepo = $this->entityManager->getRepository(CartRepository::class);
-
-			return $cartRepo->getCart($this->getIdentifier());
-		} catch (NoResultException | NonUniqueResultException) {
-			if ($flush === true) {
-				$cart = new Cart($this->getIdentifier());
-				$this->entityManager->persist($cart);
-				$this->entityManager->flush();
-
-				return $cart;
+		$identifier = $this->getIdentifier();
+		$cart = $this->secondLevelCache->getCart($identifier);
+		if ($cart === null) {
+			try {
+				/** @var CartRepository $cartRepo */
+				$cartRepo = $this->entityManager->getRepository(CartRepository::class);
+				$cart = $cartRepo->getCart($identifier);
+			} catch (NoResultException | NonUniqueResultException) {
+				if ($flush === true) {
+					$cart = new Cart($identifier);
+					$this->entityManager->persist($cart);
+					$this->entityManager->flush();
+				}
 			}
 		}
+		if ($cart !== null) {
+			$this->secondLevelCache->saveCart($identifier, $cart);
+		}
 
-		return null;
+		return $cart;
 	}
 
 
@@ -107,19 +114,13 @@ final class CartManager
 	}
 
 
-	public function getItemsCount(bool $flush = false): int
+	public function getItemsCount(): int
 	{
 		if ($this->user->isLoggedIn() === false && $this->sessionProvider->getHash() === null) {
 			return 0;
 		}
-		static $count;
-		if ($count === null || $flush === true) {
-			/** @var CartItemRepository $cartItemRepo */
-			$cartItemRepo = $this->entityManager->getRepository(CartItemRepository::class);
-			$count = $cartItemRepo->getItemsCount($this->getIdentifier());
-		}
 
-		return $count;
+		return count($this->getCartFlushed()->getItems());
 	}
 
 
@@ -142,10 +143,11 @@ final class CartManager
 
 	public function removeCart(Cart $cart): void
 	{
-		foreach ($cart->getItems() as $item) {
+		foreach ($cart->getAllItems() as $item) {
 			$this->entityManager->remove($item);
 		}
 		$this->entityManager->remove($cart);
+		$this->entityManager->flush();
 	}
 
 

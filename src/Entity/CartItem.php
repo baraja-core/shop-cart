@@ -143,4 +143,12 @@ class CartItem
 		}
 		$this->count += $count;
 	}
+
+
+	public function isActive(): bool
+	{
+		return $this->product->isActive()
+			&& $this->product->isSoldOut() === false
+			&& ($this->variant === null || $this->variant->isSoldOut() === false);
+	}
 }

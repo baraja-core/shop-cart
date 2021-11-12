@@ -150,7 +150,7 @@ final class CartEndpoint extends BaseEndpoint
 		$cartItem = $this->cartManager->buyProduct($product, $variant, $count);
 
 		$this->sendJson([
-			'count' => $this->cartManager->getItemsCount(true),
+			'count' => $this->cartManager->getItemsCount(),
 			'dataLayer' => $this->getDataLayer(
 				$cartItem->getProduct(),
 				$cartItem->getVariant(),
