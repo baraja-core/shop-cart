@@ -9,7 +9,7 @@ use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: CartItemRepository::class)]
 #[ORM\Table(name: 'shop__cart_item')]
 class CartItem
 {

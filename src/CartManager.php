@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
-use Baraja\Doctrine\EntityManager;
 use Baraja\Shop\Cart\Bridge\NetteSessionBridge;
 use Baraja\Shop\Cart\Entity\Cart;
 use Baraja\Shop\Cart\Entity\CartItem;
+use Baraja\Shop\Cart\Entity\CartItemRepository;
+use Baraja\Shop\Cart\Entity\CartRepository;
 use Baraja\Shop\Cart\Session\NativeSessionProvider;
 use Baraja\Shop\Cart\Session\SessionProvider;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 use Nette\Http\Session;
@@ -25,7 +27,7 @@ final class CartManager
 
 
 	public function __construct(
-		private EntityManager $entityManager,
+		private EntityManagerInterface $entityManager,
 		private User $user,
 		SessionProvider|Session|null $sessionProvider = null,
 	) {
@@ -48,14 +50,10 @@ final class CartManager
 	public function getCart(bool $flush = true): ?Cart
 	{
 		try {
-			/** @phpstan-ignore-next-line */
-			return $this->entityManager->getRepository(Cart::class)
-				->createQueryBuilder('cart')
-				->andWhere('cart.identifier = :identifier')
-				->setParameter('identifier', $this->getIdentifier())
-				->setMaxResults(1)
-				->getQuery()
-				->getSingleResult();
+			/** @var CartRepository $cartRepo */
+			$cartRepo = $this->entityManager->getRepository(CartRepository::class);
+
+			return $cartRepo->getCart($this->getIdentifier());
 		} catch (NoResultException | NonUniqueResultException) {
 			if ($flush === true) {
 				$cart = new Cart($this->getIdentifier());
@@ -70,33 +68,33 @@ final class CartManager
 	}
 
 
-	public function buyProduct(Product $product, ?ProductVariant $variant, int $count = 1): CartItem
+	public function getCartFlushed(): Cart
 	{
 		$cart = $this->getCart(true);
 		assert($cart !== null);
+
+		return $cart;
+	}
+
+
+	public function isCartFlushed(): bool
+	{
+		return $this->getCart(false) !== null;
+	}
+
+
+	public function buyProduct(Product $product, ?ProductVariant $variant, int $count = 1): CartItem
+	{
+		$cart = $this->getCartFlushed();
 		if ($variant === null && $product->isVariantProduct() === true) {
 			throw new \InvalidArgumentException(
-				'Please select variant for product "' . $product->getName() . '" (' . $product->getId() . ').'
+				sprintf('Please select variant for product "%s" (%s).', $product->getName(), $product->getId())
 			);
 		}
 		try {
-			$select = $this->entityManager->getRepository(CartItem::class)
-				->createQueryBuilder('cartItem')
-				->leftJoin('cartItem.cart', 'cart')
-				->where('cartItem.product = :productId')
-				->andWhere('cart.identifier = :identifier')
-				->setParameter('productId', $product->getId())
-				->setParameter('identifier', $this->getIdentifier());
-
-			if ($variant !== null) {
-				$select->andWhere('cartItem.variant = :variantId')
-					->setParameter('variantId', $variant->getId());
-			}
-
-			/** @var CartItem $cartItem */
-			$cartItem = $select->setMaxResults(1)
-				->getQuery()
-				->getSingleResult();
+			/** @var CartItemRepository $cartItemRepo */
+			$cartItemRepo = $this->entityManager->getRepository(CartItemRepository::class);
+			$cartItem = $cartItemRepo->getByProduct($this->getIdentifier(), $product, $variant);
 		} catch (NoResultException | NonUniqueResultException) {
 			$cartItem = new CartItem($cart, $product, $variant, 0);
 			$this->entityManager->persist($cartItem);
@@ -116,15 +114,9 @@ final class CartManager
 		}
 		static $count;
 		if ($count === null || $flush === true) {
-			/** @phpstan-ignore-next-line */
-			$count = (int) $this->entityManager->getRepository(CartItem::class)
-				->createQueryBuilder('cartItem')
-				->select('COUNT(cartItem)')
-				->leftJoin('cartItem.cart', 'cart')
-				->where('cart.identifier = :identifier')
-				->setParameter('identifier', $this->getIdentifier())
-				->getQuery()
-				->getSingleScalarResult();
+			/** @var CartItemRepository $cartItemRepo */
+			$cartItemRepo = $this->entityManager->getRepository(CartItemRepository::class);
+			$count = $cartItemRepo->getItemsCount($this->getIdentifier());
 		}
 
 		return $count;
@@ -133,7 +125,7 @@ final class CartManager
 
 	public function isFreeDelivery(): bool
 	{
-		$cart = $this->getCart();
+		$cart = $this->getCart(false);
 		if ($cart !== null) {
 			return $cart->getItemsPrice() >= 1_000;
 		}
