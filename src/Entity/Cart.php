@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\Entity;
 
 
-use Baraja\Doctrine\Identifier\IdentifierUnsigned;
 use Baraja\Shop\Cart\CartManager;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
@@ -18,7 +17,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'shop__cart')]
 class Cart
 {
-	use IdentifierUnsigned;
+	#[ORM\Id]
+	#[ORM\Column(type: 'integer', unique: true, options: ['unsigned' => true])]
+	#[ORM\GeneratedValue]
+	protected int $id;
 
 	#[ORM\ManyToOne(targetEntity: Customer::class)]
 	private ?Customer $customer = null;
@@ -51,6 +53,12 @@ class Cart
 		$this->identifier = $identifier;
 		$this->insertedDate = new \DateTimeImmutable;
 		$this->items = new ArrayCollection;
+	}
+
+
+	public function getId(): int
+	{
+		return $this->id;
 	}
 
 

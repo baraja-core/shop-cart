@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\Entity;
 
 
-use Baraja\Doctrine\Identifier\IdentifierUnsigned;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
 use Doctrine\ORM\Mapping as ORM;
@@ -14,7 +13,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'shop__cart_item')]
 class CartItem
 {
-	use IdentifierUnsigned;
+	#[ORM\Id]
+	#[ORM\Column(type: 'integer', unique: true, options: ['unsigned' => true])]
+	#[ORM\GeneratedValue]
+	protected int $id;
 
 	#[ORM\ManyToOne(targetEntity: Cart::class, inversedBy: 'items')]
 	private Cart $cart;
@@ -39,6 +41,12 @@ class CartItem
 		$this->product = $product;
 		$this->variant = $variant;
 		$this->count = $count;
+	}
+
+
+	public function getId(): int
+	{
+		return $this->id;
 	}
 
 
