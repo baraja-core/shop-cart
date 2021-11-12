@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
-use Nette\Utils\Validators;
+use Baraja\EmailType\Email;
 
 class OrderInfoBasic
 {
@@ -48,10 +48,7 @@ class OrderInfoBasic
 
 	public function setEmail(string $email): void
 	{
-		if (Validators::isEmail($email) === false) {
-			throw new \InvalidArgumentException('Customer e-mail "' . $email . '" is not valid.');
-		}
-		$this->email = $email;
+		$this->email = Email::normalize($email);
 	}
 
 
