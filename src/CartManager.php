@@ -10,6 +10,7 @@ use Baraja\Shop\Cart\Entity\Cart;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
 use Baraja\Shop\Cart\Entity\CartRepository;
+use Baraja\Shop\Cart\Entity\CartRuntimeContext;
 use Baraja\Shop\Cart\Session\NativeSessionProvider;
 use Baraja\Shop\Cart\Session\SessionProvider;
 use Baraja\Shop\Product\Entity\Product;
@@ -27,6 +28,8 @@ final class CartManager
 
 	private CartSecondLevelCache $secondLevelCache;
 
+	private CartRuntimeContext $runtimeContext;
+
 
 	public function __construct(
 		private EntityManagerInterface $entityManager,
@@ -41,11 +44,17 @@ final class CartManager
 			$this->sessionProvider = $sessionProvider;
 		}
 		$this->secondLevelCache = new CartSecondLevelCache;
+		$this->runtimeContext = new CartRuntimeContext;
 	}
 
 
+	/**
+	 * @deprecated since 2021-11-12, use CartRuntimeContext.
+	 */
 	public static function getFreeDeliveryLimit(): float
 	{
+		trigger_error(__METHOD__ . ': Method is deprecated, use CartRuntimeContext instead.');
+
 		return 1_000;
 	}
 
@@ -68,6 +77,7 @@ final class CartManager
 			}
 		}
 		if ($cart !== null) {
+			$cart->setRuntimeContext($this->runtimeContext);
 			$this->secondLevelCache->saveCart($identifier, $cart);
 		}
 
@@ -128,7 +138,7 @@ final class CartManager
 	{
 		$cart = $this->getCart(false);
 		if ($cart !== null) {
-			return $cart->getItemsPrice() >= 1_000;
+			return $cart->getItemsPrice() >= $cart->getRuntimeContext()->getFreeDeliveryLimit();
 		}
 
 		return false;

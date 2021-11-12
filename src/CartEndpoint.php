@@ -39,34 +39,33 @@ final class CartEndpoint extends BaseEndpoint
 		$items = [];
 		$price = 0;
 		$priceWithoutVat = 0;
-		$cart = $this->cartManager->getCart();
-		if ($cart !== null) {
-			foreach ($cart->getItems() as $cartItem) {
-				$items[] = [
-					'id' => $cartItem->getId(),
-					'url' => $this->linkSafe(':Front:Product:detail', [
-						'slug' => $cartItem->getProduct()->getSlug(),
-					]),
-					'mainImageUrl' => (static function (?ProductImage $image): ?string {
-						if ($image === null) {
-							return null;
-						}
+		$cart = $this->cartManager->getCartFlushed();
+		foreach ($cart->getItems() as $cartItem) {
+			$items[] = [
+				'id' => $cartItem->getId(),
+				'url' => $this->linkSafe(':Front:Product:detail', [
+					'slug' => $cartItem->getProduct()->getSlug(),
+				]),
+				'mainImageUrl' => (static function (?ProductImage $image): ?string {
+					if ($image === null) {
+						return null;
+					}
 
-						return ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]);
-					})($cartItem->getProduct()->getMainImage()),
-					'name' => $cartItem->getName(),
-					'count' => $cartItem->getCount(),
-					'price' => $this->cartManager->formatPrice($cartItem->getBasicPrice()),
-					'description' => $cartItem->getDescription(),
-				];
-				$price += $cartItem->getPrice();
-				$priceWithoutVat += $cartItem->getPriceWithoutVat();
-			}
+					return ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]);
+				})($cartItem->getProduct()->getMainImage()),
+				'name' => $cartItem->getName(),
+				'count' => $cartItem->getCount(),
+				'price' => $this->cartManager->formatPrice($cartItem->getBasicPrice()),
+				'description' => $cartItem->getDescription(),
+			];
+			$price += $cartItem->getPrice();
+			$priceWithoutVat += $cartItem->getPriceWithoutVat();
 		}
 
+		$freeDelivery = $cart->getRuntimeContext()->getFreeDeliveryLimit();
 		$this->sendJson([
 			'items' => $items,
-			'priceToFreeDelivery' => (int) ($price >= 1_000 ? 0 : (1_000 - $price)),
+			'priceToFreeDelivery' => $price >= $freeDelivery ? 0 : (int) ($freeDelivery - $price),
 			'price' => [
 				'final' => $this->cartManager->formatPrice($price),
 				'withoutVat' => $this->cartManager->formatPrice($priceWithoutVat),

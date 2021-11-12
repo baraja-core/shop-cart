@@ -47,6 +47,8 @@ class Cart
 	#[ORM\Column(type: 'datetime')]
 	private \DateTimeInterface $insertedDate;
 
+	private CartRuntimeContext $runtimeContext;
+
 
 	public function __construct(string $identifier)
 	{
@@ -118,7 +120,7 @@ class Cart
 	public function getDeliveryPrice(float $itemsPrice = 0): float
 	{
 		$sum = 0;
-		if ($this->delivery !== null && $itemsPrice < CartManager::getFreeDeliveryLimit()) {
+		if ($this->delivery !== null && $itemsPrice < $this->runtimeContext->getFreeDeliveryLimit()) {
 			$sum += $this->delivery->getPrice();
 		}
 		if ($this->payment !== null) {
@@ -200,5 +202,20 @@ class Cart
 	public function setSaleCoupon(?int $saleCoupon): void
 	{
 		$this->saleCoupon = $saleCoupon;
+	}
+
+
+	public function getRuntimeContext(): CartRuntimeContext
+	{
+		return $this->runtimeContext;
+	}
+
+
+	/**
+	 * @internal
+	 */
+	public function setRuntimeContext(CartRuntimeContext $runtimeContext): void
+	{
+		$this->runtimeContext = $runtimeContext;
 	}
 }
