@@ -42,6 +42,7 @@ final class CartManager
 	public function getCart(bool $flush = true): ?Cart
 	{
 		try {
+			/** @phpstan-ignore-next-line */
 			return $this->entityManager->getRepository(Cart::class)
 				->createQueryBuilder('cart')
 				->andWhere('cart.identifier = :identifier')
@@ -108,6 +109,7 @@ final class CartManager
 		static $count;
 		if ($count === null || $flush === true) {
 			try {
+				/** @phpstan-ignore-next-line */
 				$count = (int) $this->entityManager->getRepository(CartItem::class)
 					->createQueryBuilder('cartItem')
 					->select('COUNT(cartItem)')
@@ -156,13 +158,18 @@ final class CartManager
 	private function getIdentifier(): string
 	{
 		if ($this->user->isLoggedIn()) {
-			return 'user_' . substr(md5((string) $this->user->getId()), 0, 27);
+			$userId = $this->user->getId();
+			if (is_numeric($userId) || is_string($userId)) {
+				return 'user_' . substr(md5((string) $userId), 0, 27);
+			}
+			throw new \LogicException(sprintf('User id must be a scalar, but type "%s" given.', get_debug_type($userId)));
 		}
 		$identifier = $this->session->offsetGet('hash');
 		if ($identifier === null) {
 			$identifier = 'anonymous_' . Random::generate(22);
 			$this->session->offsetSet('hash', $identifier);
 		}
+		assert(is_string($identifier));
 
 		return $identifier;
 	}

@@ -116,7 +116,7 @@ class CartItem
 		if ($this->variant !== null) {
 			$return = '';
 			foreach (ProductVariant::unserializeParameters($this->variant->getRelationHash()) as $key => $value) {
-				$return .= ($return ? ', ' : '') . $key . ': ' . $value;
+				$return .= ($return !== '' ? ', ' : '') . $key . ': ' . $value;
 			}
 
 			return $return;

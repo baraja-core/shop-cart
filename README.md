@@ -1,4 +1,4 @@
-Template
-========
+Shop cart
+=========
 
-This is a template package.
+Simple shop interface for buy products.

@@ -7,25 +7,25 @@ namespace Baraja\Shop\Cart;
 
 use Nette\Utils\Validators;
 
-final class OrderInfoBasic
+class OrderInfoBasic
 {
-	private string $firstName;
+	protected string $firstName;
 
-	private string $lastName;
+	protected string $lastName;
 
-	private string $email;
+	protected string $email;
 
-	private string $phone;
+	protected string $phone;
 
-	private ?string $registerPassword = null;
+	protected ?string $registerPassword = null;
 
-	private ?string $notice = null;
+	protected ?string $notice = null;
 
-	private bool $newsletter = false;
+	protected bool $newsletter = false;
 
-	private bool $register = false;
+	protected bool $register = false;
 
-	private bool $gdpr = false;
+	protected bool $gdpr = false;
 
 
 	public function getFirstName(): string
@@ -69,7 +69,9 @@ final class OrderInfoBasic
 
 	public function getNotice(): ?string
 	{
-		return trim($this->notice ?? '') ?: null;
+		$notice = trim($this->notice ?? '');
+
+		return $notice !== '' ? $notice : null;
 	}
 
 

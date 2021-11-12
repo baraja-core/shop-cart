@@ -10,7 +10,6 @@ use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
 use Baraja\ImageGenerator\ImageGenerator;
 use Baraja\Shop\Cart\Entity\CartItem;
-use Baraja\Shop\Customer\CustomerManager;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
 use Baraja\Shop\Payment\Entity\Payment;
@@ -28,7 +27,6 @@ final class CartEndpoint extends BaseEndpoint
 {
 	public function __construct(
 		private CartManager $cartManager,
-		private CustomerManager $customerManager,
 		private OrderManager $orderManager,
 		private EntityManager $entityManager,
 		private PriceRendererInterface $priceRenderer,
@@ -312,9 +310,10 @@ final class CartEndpoint extends BaseEndpoint
 			$this->sendError('Nebyla vybrána doprava a platba.');
 		}
 		foreach ($cart->getItems() as $item) {
+			$img = $item->getMainImageRelativePath();
 			$items[] = [
 				'id' => $item->getId(),
-				'mainImage' => ($img = $item->getMainImageRelativePath())
+				'mainImage' => $img !== null
 					? ImageGenerator::from($img, ['w' => 96, 'h' => 96])
 					: null,
 				'url' => $this->linkSafe('Front:Product:detail', [
@@ -377,12 +376,12 @@ final class CartEndpoint extends BaseEndpoint
 		];
 		if ($this->getUser()->isLoggedIn()) {
 			$identity = $this->getUser()->getIdentity();
-			/** @var Customer|null $customer */
 			$customer = null;
 			if ($identity instanceof AdminIdentity) {
 				/** @var User $adminUser */
 				$adminUser = $this->entityManager->getRepository(User::class)->find($this->getUser()->getId());
 				try {
+					/** @var Customer $customer */
 					$customer = $this->entityManager->getRepository(Customer::class)
 						->createQueryBuilder('customer')
 						->where('customer.email = :email')
@@ -394,6 +393,7 @@ final class CartEndpoint extends BaseEndpoint
 					// Admin customer does not exist.
 				}
 			} else {
+				/** @var Customer $customer */
 				$customer = $this->entityManager->getRepository(Customer::class)->find($this->getUser()->getId());
 			}
 			if ($customer !== null) {
@@ -461,7 +461,7 @@ final class CartEndpoint extends BaseEndpoint
 				->where('cartItem.id = :id')
 				->andWhere('cartItem.cart = :cartId')
 				->setParameter('id', $id)
-				->setParameter('cartId', $cart ? $cart->getId() : null)
+				->setParameter('cartId', $cart !== null ? $cart->getId() : null)
 				->setMaxResults(1)
 				->getQuery()
 				->getSingleResult();

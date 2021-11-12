@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
-final class OrderInfoAddress
+class OrderInfoAddress
 {
-	private string $street;
+	protected string $street;
 
-	private string $city;
+	protected string $city;
 
-	private string $zip;
+	protected string $zip;
 
-	private string $companyName = '';
+	protected string $companyName = '';
 
-	private string $ic = '';
+	protected string $ic = '';
 
-	private string $dic = '';
+	protected string $dic = '';
 
-	private bool $buyAsCompany = false;
+	protected bool $buyAsCompany = false;
 
-	private bool $invoiceAddressIsDifferent = false;
+	protected bool $invoiceAddressIsDifferent = false;
 
 
 	/**
