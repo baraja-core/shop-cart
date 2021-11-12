@@ -6,30 +6,36 @@ namespace Baraja\Shop\Cart;
 
 
 use Baraja\Doctrine\EntityManager;
+use Baraja\Shop\Cart\Bridge\NetteSessionBridge;
 use Baraja\Shop\Cart\Entity\Cart;
 use Baraja\Shop\Cart\Entity\CartItem;
+use Baraja\Shop\Cart\Session\NativeSessionProvider;
+use Baraja\Shop\Cart\Session\SessionProvider;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 use Nette\Http\Session;
-use Nette\Http\SessionSection;
 use Nette\Security\User;
 use Nette\Utils\Random;
-use Tracy\Debugger;
-use Tracy\ILogger;
 
 final class CartManager
 {
-	private SessionSection $session;
+	private SessionProvider $sessionProvider;
 
 
 	public function __construct(
 		private EntityManager $entityManager,
 		private User $user,
-		Session $session,
+		SessionProvider|Session|null $sessionProvider = null,
 	) {
-		$this->session = $session->getSection('cart');
+		if ($sessionProvider === null) {
+			$this->sessionProvider = new NativeSessionProvider;
+		} elseif ($sessionProvider instanceof Session) {
+			$this->sessionProvider = new NetteSessionBridge($sessionProvider);
+		} else {
+			$this->sessionProvider = $sessionProvider;
+		}
 	}
 
 
@@ -69,7 +75,9 @@ final class CartManager
 		$cart = $this->getCart(true);
 		assert($cart !== null);
 		if ($variant === null && $product->isVariantProduct() === true) {
-			throw new \InvalidArgumentException('Please select variant for product "' . $product->getName() . '" (' . $product->getId() . ').');
+			throw new \InvalidArgumentException(
+				'Please select variant for product "' . $product->getName() . '" (' . $product->getId() . ').'
+			);
 		}
 		try {
 			$select = $this->entityManager->getRepository(CartItem::class)
@@ -103,26 +111,20 @@ final class CartManager
 
 	public function getItemsCount(bool $flush = false): int
 	{
-		if ($this->user->isLoggedIn() === false && $this->session->offsetGet('hash') === null) {
+		if ($this->user->isLoggedIn() === false && $this->sessionProvider->getHash() === null) {
 			return 0;
 		}
 		static $count;
 		if ($count === null || $flush === true) {
-			try {
-				/** @phpstan-ignore-next-line */
-				$count = (int) $this->entityManager->getRepository(CartItem::class)
-					->createQueryBuilder('cartItem')
-					->select('COUNT(cartItem)')
-					->leftJoin('cartItem.cart', 'cart')
-					->where('cart.identifier = :identifier')
-					->setParameter('identifier', $this->getIdentifier())
-					->getQuery()
-					->getSingleScalarResult();
-			} catch (\Throwable $e) {
-				Debugger::log($e, ILogger::CRITICAL);
-
-				$count = 0;
-			}
+			/** @phpstan-ignore-next-line */
+			$count = (int) $this->entityManager->getRepository(CartItem::class)
+				->createQueryBuilder('cartItem')
+				->select('COUNT(cartItem)')
+				->leftJoin('cartItem.cart', 'cart')
+				->where('cart.identifier = :identifier')
+				->setParameter('identifier', $this->getIdentifier())
+				->getQuery()
+				->getSingleScalarResult();
 		}
 
 		return $count;
@@ -162,14 +164,15 @@ final class CartManager
 			if (is_numeric($userId) || is_string($userId)) {
 				return 'user_' . substr(md5((string) $userId), 0, 27);
 			}
-			throw new \LogicException(sprintf('User id must be a scalar, but type "%s" given.', get_debug_type($userId)));
+			throw new \LogicException(
+				sprintf('User id must be a scalar, but type "%s" given.', get_debug_type($userId))
+			);
 		}
-		$identifier = $this->session->offsetGet('hash');
+		$identifier = $this->sessionProvider->getHash();
 		if ($identifier === null) {
 			$identifier = 'anonymous_' . Random::generate(22);
-			$this->session->offsetSet('hash', $identifier);
+			$this->sessionProvider->setHash($identifier);
 		}
-		assert(is_string($identifier));
 
 		return $identifier;
 	}
