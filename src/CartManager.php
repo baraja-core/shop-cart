@@ -140,7 +140,7 @@ final class CartManager
 
 	public function isFreeDelivery(?Cart $cart = null): bool
 	{
-		$cart = $cart ?? $this->getCart(false);
+		$cart ??= $this->getCart(false);
 
 		return $cart->getRuntimeContext()->getFreeDeliveryResolver()->isFreeDelivery($cart);
 	}
