@@ -13,6 +13,10 @@ use Baraja\Shop\Cart\Entity\CartRepository;
 use Baraja\Shop\Cart\Entity\CartRuntimeContext;
 use Baraja\Shop\Cart\Session\NativeSessionProvider;
 use Baraja\Shop\Cart\Session\SessionProvider;
+use Baraja\Shop\ContextAccessor;
+use Baraja\Shop\Currency\CurrencyManagerAccessor;
+use Baraja\Shop\Customer\Entity\Customer;
+use Baraja\Shop\Price\Price;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,6 +38,8 @@ final class CartManager
 	public function __construct(
 		private EntityManagerInterface $entityManager,
 		private User $user,
+		private ContextAccessor $context,
+		CurrencyManagerAccessor $currencyManager,
 		SessionProvider|Session|null $sessionProvider = null,
 	) {
 		if ($sessionProvider === null) {
@@ -44,7 +50,7 @@ final class CartManager
 			$this->sessionProvider = $sessionProvider;
 		}
 		$this->secondLevelCache = new CartSecondLevelCache;
-		$this->runtimeContext = new CartRuntimeContext;
+		$this->runtimeContext = new CartRuntimeContext($currencyManager);
 	}
 
 
@@ -59,27 +65,28 @@ final class CartManager
 	}
 
 
-	public function getCart(bool $flush = true): ?Cart
+	public function getCart(bool $flush = true): Cart
 	{
 		$identifier = $this->getIdentifier();
 		$cart = $this->secondLevelCache->getCart($identifier);
 		if ($cart === null) {
 			try {
 				/** @var CartRepository $cartRepo */
-				$cartRepo = $this->entityManager->getRepository(CartRepository::class);
+				$cartRepo = $this->entityManager->getRepository(Cart::class);
 				$cart = $cartRepo->getCart($identifier);
 			} catch (NoResultException | NonUniqueResultException) {
+				$cart = new Cart($identifier, $this->context->get()->getCurrency());
 				if ($flush === true) {
-					$cart = new Cart($identifier);
 					$this->entityManager->persist($cart);
 					$this->entityManager->flush();
 				}
 			}
 		}
-		if ($cart !== null) {
-			$cart->setRuntimeContext($this->runtimeContext);
-			$this->secondLevelCache->saveCart($identifier, $cart);
+		$cart->setRuntimeContext($this->runtimeContext);
+		if ($cart->isCurrency() === false) { // back compatibility
+			$cart->setCurrency($this->context->get()->getCurrency());
 		}
+		$this->secondLevelCache->saveCart($identifier, $cart);
 
 		return $cart;
 	}
@@ -87,16 +94,13 @@ final class CartManager
 
 	public function getCartFlushed(): Cart
 	{
-		$cart = $this->getCart(true);
-		assert($cart !== null);
-
-		return $cart;
+		return $this->getCart(true);
 	}
 
 
 	public function isCartFlushed(): bool
 	{
-		return $this->getCart(false) !== null;
+		return $this->getCart(false)->isFlushed();
 	}
 
 
@@ -134,17 +138,27 @@ final class CartManager
 	}
 
 
-	public function isFreeDelivery(): bool
+	public function isFreeDelivery(?Cart $cart = null): bool
 	{
-		$cart = $this->getCart(false);
-		if ($cart !== null) {
-			return $cart->getItemsPrice() >= $cart->getRuntimeContext()->getFreeDeliveryLimit();
-		}
+		$cart = $cart ?? $this->getCart(false);
 
-		return false;
+		return $cart->getRuntimeContext()->getFreeDeliveryResolver()->isFreeDelivery($cart);
 	}
 
 
+	public function getFreeDeliveryMinimalPrice(?Cart $cart = null, ?Customer $customer = null): Price
+	{
+		if ($cart === null) {
+			$cart = $this->getCart(false);
+		}
+
+		return $cart->getRuntimeContext()->getFreeDeliveryResolver()->getMinimalPrice($cart, $customer);
+	}
+
+
+	/**
+	 * @deprecated since 2021-12-03, use Price entity instead.
+	 */
 	public function formatPrice(float $price): string
 	{
 		return str_replace(',00', '', number_format($price, 2, ',', ' '));

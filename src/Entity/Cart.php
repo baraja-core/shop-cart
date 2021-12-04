@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\Entity;
 
 
-use Baraja\Shop\Cart\CartManager;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
+use Baraja\Shop\Entity\Currency\Currency;
 use Baraja\Shop\Payment\Entity\Payment;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -40,9 +40,16 @@ class Cart
 	#[ORM\Column(type: 'string', length: 32, unique: true)]
 	private string $identifier;
 
+	#[ORM\ManyToOne(targetEntity: Currency::class)]
+	private ?Currency $currency;
+
 	/** @var CartItem[]|Collection */
 	#[ORM\OneToMany(mappedBy: 'cart', targetEntity: CartItem::class)]
-	private $items;
+	private Collection $items;
+
+	/** @var CartSale[]|Collection */
+	#[ORM\OneToMany(mappedBy: 'cart', targetEntity: CartSale::class)]
+	private Collection $sales;
 
 	#[ORM\Column(type: 'datetime')]
 	private \DateTimeInterface $insertedDate;
@@ -50,17 +57,25 @@ class Cart
 	private CartRuntimeContext $runtimeContext;
 
 
-	public function __construct(string $identifier)
+	public function __construct(string $identifier, Currency $currency)
 	{
 		$this->identifier = $identifier;
+		$this->currency = $currency;
 		$this->insertedDate = new \DateTimeImmutable;
 		$this->items = new ArrayCollection;
+		$this->sales = new ArrayCollection;
 	}
 
 
 	public function getId(): int
 	{
 		return $this->id;
+	}
+
+
+	public function isFlushed(): bool
+	{
+		return isset($this->id);
 	}
 
 
@@ -103,6 +118,27 @@ class Cart
 	public function getIdentifier(): string
 	{
 		return $this->identifier;
+	}
+
+
+	public function getCurrency(): Currency
+	{
+		assert($this->currency !== null);
+
+		return $this->currency;
+	}
+
+
+	public function setCurrency(Currency $currency): void
+	{
+		$this->currency = $currency;
+	}
+
+
+	/** Back compatibility. */
+	public function isCurrency(): bool
+	{
+		return $this->currency !== null;
 	}
 
 
@@ -166,6 +202,26 @@ class Cart
 	public function getAllItems(): array
 	{
 		return $this->items->toArray();
+	}
+
+
+	/**
+	 * @return array<int, CartSale>
+	 */
+	public function getSales(): array
+	{
+		$return = [];
+		foreach ($this->sales as $sale) {
+			$return[] = $sale;
+		}
+
+		return $return;
+	}
+
+
+	public function addSale(CartSale $sale): void
+	{
+		$this->sales[] = $sale;
 	}
 
 

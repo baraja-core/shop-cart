@@ -262,10 +262,7 @@ final class CartEndpoint extends BaseEndpoint
 
 	public function postDeliveryAndPayments(string $delivery, string $payment, ?int $branch = null): void
 	{
-		$cart = $this->cartManager->getCart(true);
-		if ($cart === null) {
-			$this->sendError('Košík nemůže být prázdný.');
-		}
+		$cart = $this->cartManager->getCartFlushed();
 
 		/** @var Delivery $deliveryEntity */
 		$deliveryEntity = $this->entityManager->getRepository(Delivery::class)
@@ -297,10 +294,7 @@ final class CartEndpoint extends BaseEndpoint
 	public function actionCustomer(): void
 	{
 		$items = [];
-		$cart = $this->cartManager->getCart();
-		if ($cart === null) {
-			$this->sendError('Cart is empty.');
-		}
+		$cart = $this->cartManager->getCartFlushed();
 
 		$delivery = $cart->getDelivery();
 		$payment = $cart->getPayment();
@@ -346,11 +340,7 @@ final class CartEndpoint extends BaseEndpoint
 		if ($orderInfo->getInfo()->isGdpr() === false) {
 			$this->sendError('Musíte souhlasit s podmínkami služby.');
 		}
-		$cart = $this->cartManager->getCart();
-		if ($cart === null) {
-			$this->sendError('Neexistuje košík.');
-		}
-
+		$cart = $this->cartManager->getCartFlushed();
 		$order = $this->orderManager->createOrder($orderInfo, $cart);
 		$this->sendOk([
 			'id' => $order->getId(),
@@ -460,7 +450,7 @@ final class CartEndpoint extends BaseEndpoint
 				->where('cartItem.id = :id')
 				->andWhere('cartItem.cart = :cartId')
 				->setParameter('id', $id)
-				->setParameter('cartId', $cart !== null ? $cart->getId() : null)
+				->setParameter('cartId', $cart->isFlushed() ? $cart->getId() : null)
 				->setMaxResults(1)
 				->getQuery()
 				->getSingleResult();
