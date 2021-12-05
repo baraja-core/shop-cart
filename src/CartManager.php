@@ -76,17 +76,18 @@ final class CartManager
 				$cart = $cartRepo->getCart($identifier);
 			} catch (NoResultException | NonUniqueResultException) {
 				$cart = new Cart($identifier, $this->context->get()->getCurrency());
-				if ($flush === true) {
-					$this->entityManager->persist($cart);
-					$this->entityManager->flush();
-				}
+				$this->entityManager->persist($cart);
 			}
 		}
 		$cart->setRuntimeContext($this->runtimeContext);
 		if ($cart->isCurrency() === false) { // back compatibility
 			$cart->setCurrency($this->context->get()->getCurrency());
+			$flush = true;
 		}
 		$this->secondLevelCache->saveCart($identifier, $cart);
+		if ($flush === true) {
+			$this->entityManager->flush();
+		}
 
 		return $cart;
 	}
