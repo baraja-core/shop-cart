@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
-use Baraja\Shop\Cart\Entity\Cart;
-use Baraja\Shop\Cart\Entity\OrderNumber;
+use Baraja\EcommerceStandard\Service\OrderManagerInterface;
 
-interface OrderManager
+/**
+ * @deprecated since 2022-01-14, use OrderManagerInterface from baraja-core/ecommerce-standard
+ */
+interface OrderManager extends OrderManagerInterface
 {
-	public function createOrder(OrderInfo $orderInfo, Cart $cart): OrderNumber;
 }

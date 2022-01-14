@@ -8,6 +8,7 @@ namespace Baraja\Shop\Cart;
 use Baraja\AdminBar\User\AdminIdentity;
 use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
+use Baraja\EcommerceStandard\Service\OrderManagerInterface;
 use Baraja\ImageGenerator\ImageGenerator;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Customer\Entity\Customer;
@@ -27,7 +28,7 @@ final class CartEndpoint extends BaseEndpoint
 {
 	public function __construct(
 		private CartManager $cartManager,
-		private OrderManager $orderManager,
+		private OrderManagerInterface $orderManager,
 		private EntityManager $entityManager,
 		private PriceRendererInterface $priceRenderer,
 	) {
