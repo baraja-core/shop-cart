@@ -8,6 +8,7 @@ namespace Baraja\Shop\Cart;
 use Baraja\AdminBar\User\AdminIdentity;
 use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
+use Baraja\EcommerceStandard\DTO\ImageInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
@@ -63,7 +64,7 @@ final class CartEndpoint extends BaseEndpoint
 				'url' => $this->linkSafe(':Front:Product:detail', [
 					'slug' => $cartItem->getProduct()->getSlug(),
 				]),
-				'mainImageUrl' => (static function (?ProductImage $image): ?string {
+				'mainImageUrl' => (static function (?ImageInterface $image): ?string {
 					if ($image === null) {
 						return null;
 					}
@@ -72,7 +73,7 @@ final class CartEndpoint extends BaseEndpoint
 				})($cartItem->getProduct()->getMainImage()),
 				'name' => $cartItem->getName(),
 				'count' => $cartItem->getCount(),
-				'price' => $this->cartManager->formatPrice($cartItem->getBasicPrice()),
+				'price' => $cartItem->getBasicPrice()->getValue(),
 				'description' => $cartItem->getDescription(),
 			];
 			$price += $cartItem->getPrice();
@@ -377,11 +378,11 @@ final class CartEndpoint extends BaseEndpoint
 		if ($variant === null) {
 			return new DataLayer(
 				id: (string) $product->getId(),
-				name: (string) $product->getName(),
+				name: $product->getLabel(),
 				price: (string) $product->getPrice(),
 				brand: $brand,
 				category: $mainCategory !== null
-					? (string) $mainCategory->getName()
+					? $mainCategory->getLabel()
 					: null,
 				variant: null,
 				quantity: $quantity,
@@ -390,11 +391,11 @@ final class CartEndpoint extends BaseEndpoint
 
 		return new DataLayer(
 			id: $product->getId() . '-' . $variant->getId(),
-			name: (string) $product->getName(),
+			name: $product->getLabel(),
 			price: (string) $variant->getPrice(),
 			brand: $brand,
 			category: $mainCategory !== null
-				? (string) $mainCategory->getName()
+				? $mainCategory->getLabel()
 				: null,
 			variant: $variant->getLabel(),
 			quantity: $quantity,

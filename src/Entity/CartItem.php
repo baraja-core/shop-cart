@@ -27,10 +27,10 @@ class CartItem implements CartItemInterface
 	private Cart $cart;
 
 	#[ORM\ManyToOne(targetEntity: Product::class)]
-	private ProductInterface $product;
+	private Product $product;
 
 	#[ORM\ManyToOne(targetEntity: ProductVariant::class)]
-	private ?ProductVariantInterface $variant;
+	private ?ProductVariant $variant;
 
 	#[ORM\Column(type: 'integer')]
 	private int $count;
@@ -42,6 +42,8 @@ class CartItem implements CartItemInterface
 		?ProductVariantInterface $variant = null,
 		int $count = 1,
 	) {
+		assert($product instanceof Product);
+		assert($variant instanceof ProductVariant || $variant === null);
 		$this->cart = $cart;
 		$this->product = $product;
 		$this->variant = $variant;

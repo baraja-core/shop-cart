@@ -39,8 +39,7 @@ final class CartItemRepository extends EntityRepository
 		string $identifier,
 		ProductInterface $product,
 		?ProductVariantInterface $variant = null,
-	): CartItem
-	{
+	): CartItem {
 		$select = $this->createQueryBuilder('cartItem')
 			->leftJoin('cartItem.cart', 'cart')
 			->where('cartItem.product = :productId')

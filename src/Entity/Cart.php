@@ -136,6 +136,7 @@ class Cart implements CartInterface
 
 	public function setCurrency(CurrencyInterface $currency): void
 	{
+		assert($currency instanceof Currency);
 		$this->currency = $currency;
 	}
 

@@ -7,6 +7,7 @@ namespace Baraja\Shop\Cart;
 
 use Baraja\EcommerceStandard\DTO\CartInterface;
 use Baraja\EcommerceStandard\DTO\CustomerInterface;
+use Baraja\EcommerceStandard\DTO\PriceInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\CartManagerInterface;
@@ -81,10 +82,12 @@ final class CartManager implements CartManagerInterface
 				$this->entityManager->persist($cart);
 			}
 		}
-		$cart->setRuntimeContext($this->runtimeContext);
-		if ($cart->isCurrency() === false) { // back compatibility
-			$cart->setCurrency($this->context->get()->getCurrency());
-			$flush = true;
+		if ($cart instanceof Cart) {
+			$cart->setRuntimeContext($this->runtimeContext);
+			if ($cart->isCurrency() === false) { // back compatibility
+				$cart->setCurrency($this->context->get()->getCurrency());
+				$flush = true;
+			}
 		}
 		$this->secondLevelCache->saveCart($identifier, $cart);
 		if ($flush === true) {
@@ -111,9 +114,10 @@ final class CartManager implements CartManagerInterface
 	{
 		$cart = $this->getCartFlushed();
 		if ($variant === null && $product->isVariantProduct() === true) {
-			throw new \InvalidArgumentException(
-				sprintf('Please select variant for product "%s" (%s).', $product->getName(), $product->getId()),
-			);
+			throw new \InvalidArgumentException(sprintf('Please select variant for product "%s" (%s).',
+				$product->getLabel(),
+				$product->getId(),
+			));
 		}
 		try {
 			/** @var CartItemRepository $cartItemRepo */
@@ -145,16 +149,20 @@ final class CartManager implements CartManagerInterface
 	public function isFreeDelivery(?CartInterface $cart = null): bool
 	{
 		$cart ??= $this->getCart(false);
+		assert($cart instanceof Cart);
 
 		return $cart->getRuntimeContext()->getFreeDeliveryResolver()->isFreeDelivery($cart);
 	}
 
 
-	public function getFreeDeliveryMinimalPrice(?CartInterface $cart = null, ?CustomerInterface $customer = null): Price
-	{
+	public function getFreeDeliveryMinimalPrice(
+		?CartInterface $cart = null,
+		?CustomerInterface $customer = null,
+	): PriceInterface {
 		if ($cart === null) {
 			$cart = $this->getCart(false);
 		}
+		assert($cart instanceof Cart);
 
 		return $cart->getRuntimeContext()->getFreeDeliveryResolver()->getMinimalPrice($cart, $customer);
 	}
