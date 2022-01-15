@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\Entity;
 
 
+use Baraja\EcommerceStandard\DTO\CartInterface;
+use Baraja\EcommerceStandard\DTO\CurrencyInterface;
+use Baraja\EcommerceStandard\DTO\CustomerInterface;
+use Baraja\EcommerceStandard\DTO\DeliveryInterface;
+use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
 use Baraja\Shop\Entity\Currency\Currency;
@@ -15,7 +20,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CartRepository::class)]
 #[ORM\Table(name: 'shop__cart')]
-class Cart
+class Cart implements CartInterface
 {
 	#[ORM\Id]
 	#[ORM\Column(type: 'integer', unique: true, options: ['unsigned' => true])]
@@ -23,13 +28,13 @@ class Cart
 	protected int $id;
 
 	#[ORM\ManyToOne(targetEntity: Customer::class)]
-	private ?Customer $customer = null;
+	private ?CustomerInterface $customer = null;
 
 	#[ORM\ManyToOne(targetEntity: Delivery::class)]
-	private ?Delivery $delivery = null;
+	private ?DeliveryInterface $delivery = null;
 
 	#[ORM\ManyToOne(targetEntity: Payment::class)]
-	private ?Payment $payment = null;
+	private ?PaymentInterface $payment = null;
 
 	#[ORM\Column(type: 'integer', nullable: true)]
 	private ?int $saleCoupon = null;
@@ -79,37 +84,37 @@ class Cart
 	}
 
 
-	public function getCustomer(): ?Customer
+	public function getCustomer(): ?CustomerInterface
 	{
 		return $this->customer;
 	}
 
 
-	public function setCustomer(?Customer $customer): void
+	public function setCustomer(?CustomerInterface $customer): void
 	{
 		$this->customer = $customer;
 	}
 
 
-	public function getDelivery(): ?Delivery
+	public function getDelivery(): ?DeliveryInterface
 	{
 		return $this->delivery;
 	}
 
 
-	public function setDelivery(?Delivery $delivery): void
+	public function setDelivery(?DeliveryInterface $delivery): void
 	{
 		$this->delivery = $delivery;
 	}
 
 
-	public function getPayment(): ?Payment
+	public function getPayment(): ?PaymentInterface
 	{
 		return $this->payment;
 	}
 
 
-	public function setPayment(?Payment $payment): void
+	public function setPayment(?PaymentInterface $payment): void
 	{
 		$this->payment = $payment;
 	}
@@ -121,7 +126,7 @@ class Cart
 	}
 
 
-	public function getCurrency(): Currency
+	public function getCurrency(): CurrencyInterface
 	{
 		assert($this->currency !== null);
 
@@ -129,7 +134,7 @@ class Cart
 	}
 
 
-	public function setCurrency(Currency $currency): void
+	public function setCurrency(CurrencyInterface $currency): void
 	{
 		$this->currency = $currency;
 	}

@@ -8,9 +8,13 @@ namespace Baraja\Shop\Cart;
 use Baraja\AdminBar\User\AdminIdentity;
 use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
+use Baraja\EcommerceStandard\DTO\ProductInterface;
+use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
 use Baraja\ImageGenerator\ImageGenerator;
+use Baraja\Shop\Cart\DTO\DataLayer;
 use Baraja\Shop\Cart\Entity\CartItem;
+use Baraja\Shop\Cart\Entity\CartItemRepository;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
 use Baraja\Shop\Payment\Entity\Payment;
@@ -18,6 +22,7 @@ use Baraja\Shop\Price\PriceRendererInterface;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductImage;
 use Baraja\Shop\Product\Entity\ProductVariant;
+use Baraja\Shop\Product\Repository\ProductRepository;
 use Baraja\StructuredApi\Attributes\PublicEndpoint;
 use Baraja\StructuredApi\BaseEndpoint;
 use Doctrine\ORM\NonUniqueResultException;
@@ -26,12 +31,22 @@ use Doctrine\ORM\NoResultException;
 #[PublicEndpoint]
 final class CartEndpoint extends BaseEndpoint
 {
+	private ProductRepository $productRepository;
+
+	private CartItemRepository $cartItemRepository;
+
 	public function __construct(
 		private CartManager $cartManager,
 		private OrderManagerInterface $orderManager,
 		private EntityManager $entityManager,
 		private PriceRendererInterface $priceRenderer,
 	) {
+		$productRepository = $entityManager->getRepository(Product::class);
+		assert($productRepository instanceof ProductRepository);
+		$this->productRepository = $productRepository;
+		$cartItemRepository = $entityManager->getRepository(CartItem::class);
+		assert($cartItemRepository instanceof CartItemRepository);
+		$this->cartItemRepository = $cartItemRepository;
 	}
 
 
@@ -80,8 +95,7 @@ final class CartEndpoint extends BaseEndpoint
 	 */
 	public function postCheckVariantStatus(int $productId, array $variantOptions = []): void
 	{
-		/** @var Product $product */
-		$product = $this->entityManager->getRepository(Product::class)->find($productId);
+		$product = $this->productRepository->getById($productId);
 
 		$hash = ProductVariant::serializeParameters($variantOptions);
 
@@ -132,8 +146,7 @@ final class CartEndpoint extends BaseEndpoint
 
 	public function postBuy(int $productId, ?int $variantId = null, int $count = 1): void
 	{
-		/** @var Product $product */
-		$product = $this->entityManager->getRepository(Product::class)->find($productId);
+		$product = $this->productRepository->getById($productId);
 
 		$variant = null;
 		if ($product->isVariantProduct()) {
@@ -165,65 +178,12 @@ final class CartEndpoint extends BaseEndpoint
 		$this->sendJson([
 			'status' => false,
 		]);
-		/*
-		try {
-			/** @var SaleCoupon $voucher * /
-			$voucher = $this->entityManager->getRepository(SaleCoupon::class)
-				->createQueryBuilder('voucher')
-				->where('voucher.code = :code')
-				->setParameter('code', trim($code))
-				->setMaxResults(1)
-				->getQuery()
-				->getSingleResult();
-		} catch (NoResultException | NonUniqueResultException $e) {
-			$this->sendJson([
-				'status' => false,
-			]);
-		}
-		if ($voucher->isReady() === false) {
-			$this->sendJson([
-				'status' => false,
-			]);
-		}
-
-		/** @var Product|null $product * /
-		$product = $this->entityManager->getRepository(Product::class)->find((int) $voucher->getValue());
-
-		$this->sendJson([
-			'status' => true,
-			'type' => $voucher->getType(),
-			'product' => $product === null ? null : (string) $product->getName(),
-		]);
-		*/
 	}
 
 
 	public function postUseVoucher(string $code): void
 	{
 		$this->sendError('Voucher "' . $code . '" does not exist.');
-		/*
-		try {
-			/** @var SaleCoupon $voucher * /
-			$voucher = $this->entityManager->getRepository(SaleCoupon::class)
-				->createQueryBuilder('voucher')
-				->where('voucher.code = :code')
-				->setParameter('code', trim($code))
-				->setMaxResults(1)
-				->getQuery()
-				->getSingleResult();
-		} catch (NoResultException | NonUniqueResultException $e) {
-			$this->sendError('Voucher "' . $code . '" neexistuje.');
-		}
-		if ($voucher->isReady() === false) {
-			$this->sendError('Voucher "' . $code . '" není aktivní.');
-		}
-
-		/** @var Cart $cart * /
-		$cart = $this->cartManager->getCart(true);
-		$cart->setSaleCoupon($voucher);
-		$this->entityManager->flush();
-		$this->sendOk();
-		*/
 	}
 
 
@@ -406,37 +366,38 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	/**
-	 * @return array{name: string, id: string, price: string, brand: string, category: string|null, variant: string|null, quantity: int}
-	 */
-	private function getDataLayer(Product $product, ?ProductVariant $variant = null, int $count = 1): array
-	{
+	private function getDataLayer(
+		ProductInterface $product,
+		?ProductVariantInterface $variant = null,
+		float $quantity = 1,
+	): DataLayer {
+		$brand = null; // TODO
 		$mainCategory = $product->getMainCategory();
 		if ($variant === null) {
-			return [
-				'name' => (string) $product->getName(),
-				'id' => (string) $product->getId(),
-				'price' => (string) $product->getPrice(),
-				'brand' => 'CLEVER MINDS',
-				'category' => $mainCategory !== null
+			return new DataLayer(
+				id: (string) $product->getId(),
+				name: (string) $product->getName(),
+				price: (string) $product->getPrice(),
+				brand: $brand,
+				category: $mainCategory !== null
 					? (string) $mainCategory->getName()
 					: null,
-				'variant' => null,
-				'quantity' => $count,
-			];
+				variant: null,
+				quantity: $quantity,
+			);
 		}
 
-		return [
-			'name' => (string) $product->getName(),
-			'id' => $product->getId() . '-' . $variant->getId(),
-			'price' => (string) $variant->getPrice(),
-			'brand' => 'CLEVER MINDS',
-			'category' => $mainCategory !== null
+		return new DataLayer(
+			id: $product->getId() . '-' . $variant->getId(),
+			name: (string) $product->getName(),
+			price: (string) $variant->getPrice(),
+			brand: $brand,
+			category: $mainCategory !== null
 				? (string) $mainCategory->getName()
 				: null,
-			'variant' => $variant->getLabel(),
-			'quantity' => $count,
-		];
+			variant: $variant->getLabel(),
+			quantity: $quantity,
+		);
 	}
 
 
@@ -445,18 +406,10 @@ final class CartEndpoint extends BaseEndpoint
 		$cart = $this->cartManager->getCart();
 
 		try {
-			/** @var CartItem $cartItem */
-			$cartItem = $this->entityManager->getRepository(CartItem::class)
-				->createQueryBuilder('cartItem')
-				->where('cartItem.id = :id')
-				->andWhere('cartItem.cart = :cartId')
-				->setParameter('id', $id)
-				->setParameter('cartId', $cart->isFlushed() ? $cart->getId() : null)
-				->setMaxResults(1)
-				->getQuery()
-				->getSingleResult();
-
-			return $cartItem;
+			return $this->cartItemRepository->getById(
+				id: $id,
+				cartId: $cart->isFlushed() ? $cart->getId() : null,
+			);
 		} catch (NoResultException | NonUniqueResultException) {
 			// Silence is golden.
 		}

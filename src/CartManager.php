@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
+use Baraja\EcommerceStandard\DTO\CartInterface;
+use Baraja\EcommerceStandard\DTO\CustomerInterface;
+use Baraja\EcommerceStandard\DTO\ProductInterface;
+use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
+use Baraja\EcommerceStandard\Service\CartManagerInterface;
 use Baraja\Shop\Cart\Bridge\NetteSessionBridge;
 use Baraja\Shop\Cart\Entity\Cart;
 use Baraja\Shop\Cart\Entity\CartItem;
@@ -15,7 +20,6 @@ use Baraja\Shop\Cart\Session\NativeSessionProvider;
 use Baraja\Shop\Cart\Session\SessionProvider;
 use Baraja\Shop\ContextAccessor;
 use Baraja\Shop\Currency\CurrencyManagerAccessor;
-use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Price\Price;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
@@ -26,7 +30,7 @@ use Nette\Http\Session;
 use Nette\Security\User;
 use Nette\Utils\Random;
 
-final class CartManager
+final class CartManager implements CartManagerInterface
 {
 	private SessionProvider $sessionProvider;
 
@@ -65,14 +69,14 @@ final class CartManager
 	}
 
 
-	public function getCart(bool $flush = true): Cart
+	public function getCart(bool $flush = true): CartInterface
 	{
 		$identifier = $this->getIdentifier();
 		$cart = $this->secondLevelCache->getCart($identifier);
 		if ($cart === null) {
 			try {
-				/** @var CartRepository $cartRepo */
 				$cartRepo = $this->entityManager->getRepository(Cart::class);
+				assert($cartRepo instanceof CartRepository);
 				$cart = $cartRepo->getCart($identifier);
 			} catch (NoResultException | NonUniqueResultException) {
 				$cart = new Cart($identifier, $this->context->get()->getCurrency());
@@ -93,7 +97,7 @@ final class CartManager
 	}
 
 
-	public function getCartFlushed(): Cart
+	public function getCartFlushed(): CartInterface
 	{
 		return $this->getCart(true);
 	}
@@ -105,7 +109,7 @@ final class CartManager
 	}
 
 
-	public function buyProduct(Product $product, ?ProductVariant $variant, int $count = 1): CartItem
+	public function buyProduct(ProductInterface $product, ?ProductVariantInterface $variant, int $count = 1): CartItem
 	{
 		$cart = $this->getCartFlushed();
 		if ($variant === null && $product->isVariantProduct() === true) {
@@ -118,6 +122,7 @@ final class CartManager
 			$cartItemRepo = $this->entityManager->getRepository(CartItemRepository::class);
 			$cartItem = $cartItemRepo->getByProduct($this->getIdentifier(), $product, $variant);
 		} catch (NoResultException | NonUniqueResultException) {
+			assert($cart instanceof Cart);
 			$cartItem = new CartItem($cart, $product, $variant, 0);
 			$this->entityManager->persist($cartItem);
 		}
@@ -139,7 +144,7 @@ final class CartManager
 	}
 
 
-	public function isFreeDelivery(?Cart $cart = null): bool
+	public function isFreeDelivery(?CartInterface $cart = null): bool
 	{
 		$cart ??= $this->getCart(false);
 
@@ -147,7 +152,7 @@ final class CartManager
 	}
 
 
-	public function getFreeDeliveryMinimalPrice(?Cart $cart = null, ?Customer $customer = null): Price
+	public function getFreeDeliveryMinimalPrice(?CartInterface $cart = null, ?CustomerInterface $customer = null): Price
 	{
 		if ($cart === null) {
 			$cart = $this->getCart(false);
@@ -166,7 +171,7 @@ final class CartManager
 	}
 
 
-	public function removeCart(Cart $cart): void
+	public function removeCart(CartInterface $cart): void
 	{
 		foreach ($cart->getAllItems() as $item) {
 			$this->entityManager->remove($item);

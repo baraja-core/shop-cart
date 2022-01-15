@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
-final class OrderInfo
+use Baraja\EcommerceStandard\DTO\OrderInfoInterface;
+
+final class OrderInfo implements OrderInfoInterface
 {
 	public function __construct(
 		private OrderInfoBasic $info,

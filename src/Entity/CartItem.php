@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\Entity;
 
 
+use Baraja\EcommerceStandard\DTO\CartItemInterface;
+use Baraja\EcommerceStandard\DTO\PriceInterface;
+use Baraja\EcommerceStandard\DTO\ProductInterface;
+use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
+use Baraja\Shop\Price\Price;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CartItemRepository::class)]
 #[ORM\Table(name: 'shop__cart_item')]
-class CartItem
+class CartItem implements CartItemInterface
 {
 	#[ORM\Id]
 	#[ORM\Column(type: 'integer', unique: true, options: ['unsigned' => true])]
@@ -22,10 +27,10 @@ class CartItem
 	private Cart $cart;
 
 	#[ORM\ManyToOne(targetEntity: Product::class)]
-	private Product $product;
+	private ProductInterface $product;
 
 	#[ORM\ManyToOne(targetEntity: ProductVariant::class)]
-	private ?ProductVariant $variant;
+	private ?ProductVariantInterface $variant;
 
 	#[ORM\Column(type: 'integer')]
 	private int $count;
@@ -33,8 +38,8 @@ class CartItem
 
 	public function __construct(
 		Cart $cart,
-		Product $product,
-		?ProductVariant $variant = null,
+		ProductInterface $product,
+		?ProductVariantInterface $variant = null,
 		int $count = 1
 	) {
 		$this->cart = $cart;
@@ -56,13 +61,13 @@ class CartItem
 	}
 
 
-	public function getProduct(): Product
+	public function getProduct(): ProductInterface
 	{
 		return $this->product;
 	}
 
 
-	public function getVariant(): ?ProductVariant
+	public function getVariant(): ?ProductVariantInterface
 	{
 		return $this->variant;
 	}
@@ -99,23 +104,32 @@ class CartItem
 	}
 
 
-	public function getBasicPrice(): float
+	public function getBasicPrice(): PriceInterface
 	{
-		return $this->variant !== null
-			? $this->variant->getPrice()
-			: $this->product->getSalePrice();
+		return new Price(
+			value: $this->variant !== null
+				? $this->variant->getPrice()
+				: $this->product->getSalePrice(),
+			currency: $this->cart->getCurrency(),
+		);
 	}
 
 
-	public function getPrice(): float
+	public function getPrice(): PriceInterface
 	{
-		return $this->getBasicPrice() * $this->count;
+		return new Price(
+			value: $this->getBasicPrice()->getValue() * $this->count,
+			currency:  $this->cart->getCurrency(),
+		);
 	}
 
 
-	public function getPriceWithoutVat(): float
+	public function getPriceWithoutVat(): PriceInterface
 	{
-		return $this->getPrice() / (1 + ($this->getProduct()->getVat() / 100));
+		return new Price(
+			value: $this->getPrice()->getValue() / (1 + ($this->getProduct()->getVat() / 100)),
+			currency: $this->cart->getCurrency(),
+		);
 	}
 
 

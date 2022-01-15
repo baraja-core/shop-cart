@@ -16,8 +16,7 @@ final class CartRepository extends EntityRepository
 	 */
 	public function getCart(string $identifier): Cart
 	{
-		/** @phpstan-ignore-next-line */
-		return $this->createQueryBuilder('cart')
+		$cart = $this->createQueryBuilder('cart')
 			->select('cart, cartItem, product, productVariant')
 			->leftJoin('cart.items', 'cartItem')
 			->leftJoin('cartItem.product', 'product')
@@ -26,5 +25,8 @@ final class CartRepository extends EntityRepository
 			->setParameter('identifier', $identifier)
 			->getQuery()
 			->getSingleResult();
+		assert($cart instanceof Cart);
+
+		return $cart;
 	}
 }
