@@ -21,8 +21,6 @@ use Baraja\Shop\Cart\Session\SessionProvider;
 use Baraja\Shop\ContextAccessor;
 use Baraja\Shop\Currency\CurrencyManagerAccessor;
 use Baraja\Shop\Price\Price;
-use Baraja\Shop\Product\Entity\Product;
-use Baraja\Shop\Product\Entity\ProductVariant;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
@@ -114,7 +112,7 @@ final class CartManager implements CartManagerInterface
 		$cart = $this->getCartFlushed();
 		if ($variant === null && $product->isVariantProduct() === true) {
 			throw new \InvalidArgumentException(
-				sprintf('Please select variant for product "%s" (%s).', $product->getName(), $product->getId())
+				sprintf('Please select variant for product "%s" (%s).', $product->getName(), $product->getId()),
 			);
 		}
 		try {
@@ -189,7 +187,7 @@ final class CartManager implements CartManagerInterface
 				return 'user_' . substr(md5((string) $userId), 0, 27);
 			}
 			throw new \LogicException(
-				sprintf('User id must be a scalar, but type "%s" given.', get_debug_type($userId))
+				sprintf('User id must be a scalar, but type "%s" given.', get_debug_type($userId)),
 			);
 		}
 		$identifier = $this->sessionProvider->getHash();

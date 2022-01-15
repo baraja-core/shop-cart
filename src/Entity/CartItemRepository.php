@@ -31,10 +31,15 @@ final class CartItemRepository extends EntityRepository
 		return $cartItem;
 	}
 
+
 	/**
 	 * @throws NoResultException|NonUniqueResultException
 	 */
-	public function getByProduct(string $identifier, ProductInterface $product, ?ProductVariantInterface $variant = null): CartItem
+	public function getByProduct(
+		string $identifier,
+		ProductInterface $product,
+		?ProductVariantInterface $variant = null,
+	): CartItem
 	{
 		$select = $this->createQueryBuilder('cartItem')
 			->leftJoin('cartItem.cart', 'cart')

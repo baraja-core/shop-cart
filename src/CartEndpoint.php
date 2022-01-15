@@ -35,6 +35,7 @@ final class CartEndpoint extends BaseEndpoint
 
 	private CartItemRepository $cartItemRepository;
 
+
 	public function __construct(
 		private CartManager $cartManager,
 		private OrderManagerInterface $orderManager,
@@ -167,7 +168,7 @@ final class CartEndpoint extends BaseEndpoint
 			'dataLayer' => $this->getDataLayer(
 				$cartItem->getProduct(),
 				$cartItem->getVariant(),
-				$cartItem->getCount()
+				$cartItem->getCount(),
 			),
 		]);
 	}
@@ -215,7 +216,7 @@ final class CartEndpoint extends BaseEndpoint
 			'dataLayer' => $this->getDataLayer(
 				$cartItem->getProduct(),
 				$cartItem->getVariant(),
-				$cartItem->getCount()
+				$cartItem->getCount(),
 			),
 		]);
 	}

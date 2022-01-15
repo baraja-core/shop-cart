@@ -40,7 +40,7 @@ class CartItem implements CartItemInterface
 		Cart $cart,
 		ProductInterface $product,
 		?ProductVariantInterface $variant = null,
-		int $count = 1
+		int $count = 1,
 	) {
 		$this->cart = $cart;
 		$this->product = $product;

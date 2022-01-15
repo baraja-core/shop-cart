@@ -12,7 +12,7 @@ final class OrderInfo implements OrderInfoInterface
 	public function __construct(
 		private OrderInfoBasic $info,
 		private OrderInfoAddress $address,
-		private OrderInfoAddress $invoiceAddress
+		private OrderInfoAddress $invoiceAddress,
 	) {
 	}
 

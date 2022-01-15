@@ -45,7 +45,7 @@ final class FreeDeliveryResolver
 	{
 		return new Price(
 			self::DEFAULT_MINIMAL_PRICE,
-			$this->currencyManager->get()->getMainCurrency()
+			$this->currencyManager->get()->getMainCurrency(),
 		);
 	}
 }
