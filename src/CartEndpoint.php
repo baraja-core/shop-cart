@@ -12,14 +12,15 @@ use Baraja\EcommerceStandard\DTO\ImageInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
-use Baraja\EcommerceStandard\Service\PriceRendererInterface;
 use Baraja\ImageGenerator\ImageGenerator;
 use Baraja\Shop\Cart\DTO\DataLayer;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
+use Baraja\Shop\Currency\CurrencyManager;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
 use Baraja\Shop\Payment\Entity\Payment;
+use Baraja\Shop\Price\Price;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
 use Baraja\Shop\Product\Repository\ProductRepository;
@@ -40,7 +41,7 @@ final class CartEndpoint extends BaseEndpoint
 		private CartManager $cartManager,
 		private OrderManagerInterface $orderManager,
 		private EntityManager $entityManager,
-		private PriceRendererInterface $priceRenderer,
+		private CurrencyManager $currencyManager,
 	) {
 		$productRepository = $entityManager->getRepository(Product::class);
 		assert($productRepository instanceof ProductRepository);
@@ -54,8 +55,8 @@ final class CartEndpoint extends BaseEndpoint
 	public function actionDefault(): void
 	{
 		$items = [];
-		$price = 0;
-		$priceWithoutVat = 0;
+		$price = '0';
+		$priceWithoutVat = '0';
 		$cart = $this->cartManager->getCartFlushed();
 		foreach ($cart->getItems() as $cartItem) {
 			$items[] = [
@@ -72,20 +73,20 @@ final class CartEndpoint extends BaseEndpoint
 				})($cartItem->getProduct()->getMainImage()),
 				'name' => $cartItem->getName(),
 				'count' => $cartItem->getCount(),
-				'price' => $cartItem->getBasicPrice()->getValue(),
+				'price' => $cartItem->getBasicPrice()->render(true),
 				'description' => $cartItem->getDescription(),
 			];
-			$price += $cartItem->getPrice();
-			$priceWithoutVat += $cartItem->getPriceWithoutVat();
+			$price = bcadd($price, $cartItem->getPrice()->getValue());
+			$priceWithoutVat = bcadd($priceWithoutVat, $cartItem->getPriceWithoutVat()->getValue());
 		}
 
 		$freeDelivery = $cart->getRuntimeContext()->getFreeDeliveryLimit();
 		$this->sendJson([
 			'items' => $items,
-			'priceToFreeDelivery' => $price >= $freeDelivery ? 0 : (int) ($freeDelivery - $price),
+			'priceToFreeDelivery' => $price >= $freeDelivery ? null : (new Price((int) ($freeDelivery - $price), $cart->getCurrency()))->render(),
 			'price' => [
-				'final' => $this->cartManager->formatPrice($price),
-				'withoutVat' => $this->cartManager->formatPrice($priceWithoutVat),
+				'final' => (new Price($price, $cart->getCurrency()))->render(),
+				'withoutVat' => (new Price($priceWithoutVat, $cart->getCurrency()))->render(),
 			],
 		]);
 	}
@@ -133,12 +134,14 @@ final class CartEndpoint extends BaseEndpoint
 			}
 		}
 
+		$currency = $this->currencyManager->getCurrencyResolver()->getCurrency();
+
 		$this->sendJson([
 			'exist' => $exist,
 			'variantId' => $variantId,
 			'available' => $variantAvailable,
-			'price' => $variantPrice !== null ? $this->priceRenderer->render($variantPrice) : null,
-			'regularPrice' => $regularPrice !== null ? $this->priceRenderer->render($regularPrice) : null,
+			'price' => $variantPrice !== null ? (new Price($variantPrice, $currency))->render(true) : null,
+			'regularPrice' => $regularPrice !== null ? (new Price($regularPrice, $currency))->render(true) : null,
 			'sale' => $sale,
 			'dataLayer' => $this->getDataLayer($product, $variantEntity),
 		]);
@@ -282,16 +285,16 @@ final class CartEndpoint extends BaseEndpoint
 		$this->sendJson([
 			'loggedIn' => $this->getUser()->isLoggedIn(),
 			'items' => $items,
-			'price' => $this->cartManager->formatPrice($cart->getPrice()),
-			'itemsPrice' => $this->cartManager->formatPrice($cart->getItemsPrice()),
-			'deliveryPrice' => $this->cartManager->formatPrice($cart->getDeliveryPrice()),
+			'price' => $cart->getPrice()->render(true),
+			'itemsPrice' => $cart->getItemsPrice()->render(true),
+			'deliveryPrice' => $cart->getDeliveryPrice()->render(true),
 			'delivery' => [
-				'name' => (string) $delivery->getName(),
-				'price' => $delivery->getPrice(),
+				'name' => $delivery->getLabel(),
+				'price' => (new Price($delivery->getPrice(), $cart->getCurrency()))->render(true),
 			],
 			'payment' => [
 				'name' => $payment->getName(),
-				'price' => $payment->getPrice(),
+				'price' => (new Price($payment->getPrice(), $cart->getCurrency()))->render(true),
 			],
 		]);
 	}
@@ -378,11 +381,9 @@ final class CartEndpoint extends BaseEndpoint
 			return new DataLayer(
 				id: (string) $product->getId(),
 				name: $product->getLabel(),
-				price: (string) $product->getPrice(),
+				price: $product->getPrice(),
 				brand: $brand,
-				category: $mainCategory !== null
-					? $mainCategory->getLabel()
-					: null,
+				category: $mainCategory?->getLabel(),
 				variant: null,
 				quantity: $quantity,
 			);
@@ -391,11 +392,9 @@ final class CartEndpoint extends BaseEndpoint
 		return new DataLayer(
 			id: $product->getId() . '-' . $variant->getId(),
 			name: $product->getLabel(),
-			price: (string) $variant->getPrice(),
+			price: $variant->getPrice(),
 			brand: $brand,
-			category: $mainCategory !== null
-				? $mainCategory->getLabel()
-				: null,
+			category: $mainCategory?->getLabel(),
 			variant: $variant->getLabel(),
 			quantity: $quantity,
 		);

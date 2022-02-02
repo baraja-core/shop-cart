@@ -19,13 +19,15 @@ class OrderInfoAddress
 
 	protected string $dic = '';
 
+	protected ?int $country = null;
+
 	protected bool $buyAsCompany = false;
 
 	protected bool $invoiceAddressIsDifferent = false;
 
 
 	/**
-	 * @return array{street: string, city: string, zip: string, companyName: string, ic: string, dic: string}
+	 * @return array{street: string, city: string, zip: string, country: int|null, companyName: string, ic: string, dic: string}
 	 */
 	public function toArray(): array
 	{
@@ -33,6 +35,7 @@ class OrderInfoAddress
 			'street' => $this->getStreet(),
 			'city' => $this->getCity(),
 			'zip' => $this->getZip(),
+			'country' => $this->getCountry(),
 			'companyName' => $this->getCompanyName(),
 			'ic' => $this->getIc(),
 			'dic' => $this->getDic(),
@@ -55,6 +58,12 @@ class OrderInfoAddress
 	public function getZip(): string
 	{
 		return $this->zip;
+	}
+
+
+	public function getCountry(): ?int
+	{
+		return $this->country;
 	}
 
 

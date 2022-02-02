@@ -10,10 +10,12 @@ use Baraja\EcommerceStandard\DTO\CurrencyInterface;
 use Baraja\EcommerceStandard\DTO\CustomerInterface;
 use Baraja\EcommerceStandard\DTO\DeliveryInterface;
 use Baraja\EcommerceStandard\DTO\PaymentInterface;
+use Baraja\EcommerceStandard\DTO\PriceInterface;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
 use Baraja\Shop\Entity\Currency\Currency;
 use Baraja\Shop\Payment\Entity\Payment;
+use Baraja\Shop\Price\Price;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -148,40 +150,43 @@ class Cart implements CartInterface
 	}
 
 
-	public function getItemsPrice(bool $withVat = true): float
+	public function getItemsPrice(bool $withVat = true): PriceInterface
 	{
-		$sum = 0;
+		$sum = '0';
 		foreach ($this->getItems() as $item) {
-			$sum += $withVat ? $item->getPrice() : $item->getPriceWithoutVat();
+			$sum = bcadd($sum, $withVat ? $item->getPrice()->getValue() : $item->getPriceWithoutVat()->getValue());
 		}
 
-		return $sum;
+		return new Price($sum, $this->getCurrency());
 	}
 
 
-	public function getDeliveryPrice(float $itemsPrice = 0): float
+	public function getDeliveryPrice(?PriceInterface $itemsPrice = null): PriceInterface
 	{
-		$sum = 0;
-		if ($this->delivery !== null && $itemsPrice < $this->runtimeContext->getFreeDeliveryLimit()) {
-			$sum += $this->delivery->getPrice();
+		$sum = '0';
+		if ($itemsPrice === null) {
+			$itemsPrice = new Price('0', $this->getCurrency());
+		}
+		if ($this->delivery !== null && $itemsPrice->isSmallerThan((string) $this->runtimeContext->getFreeDeliveryLimit())) {
+			$sum = bcadd($sum, $this->delivery->getPrice());
 		}
 		if ($this->payment !== null) {
-			$sum += $this->payment->getPrice();
+			$sum = bcadd($sum, $this->payment->getPrice());
 		}
 
-		return $sum;
+		return new Price($sum, $this->getCurrency());
 	}
 
 
-	public function getPrice(): float
+	public function getPrice(): PriceInterface
 	{
-		return $this->getItemsPrice() + $this->getDeliveryPrice($this->getItemsPrice());
+		return $this->getItemsPrice()->plus($this->getDeliveryPrice($this->getItemsPrice()));
 	}
 
 
-	public function getPriceWithoutVat(): float
+	public function getPriceWithoutVat(): PriceInterface
 	{
-		return $this->getItemsPrice(false) + $this->getDeliveryPrice($this->getItemsPrice());
+		return $this->getItemsPrice(false)->plus($this->getDeliveryPrice($this->getItemsPrice()));
 	}
 
 

@@ -17,6 +17,9 @@ final class NativeSessionProvider implements SessionProvider
 
 	public function setHash(string $hash): void
 	{
+		if (session_status() !== PHP_SESSION_ACTIVE) {
+			session_start();
+		}
 		$_SESSION[self::KEY] = $hash;
 	}
 }

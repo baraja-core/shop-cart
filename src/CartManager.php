@@ -120,8 +120,8 @@ final class CartManager implements CartManagerInterface
 			));
 		}
 		try {
-			/** @var CartItemRepository $cartItemRepo */
-			$cartItemRepo = $this->entityManager->getRepository(CartItemRepository::class);
+			$cartItemRepo = $this->entityManager->getRepository(CartItem::class);
+			assert($cartItemRepo instanceof CartItemRepository);
 			$cartItem = $cartItemRepo->getByProduct($this->getIdentifier(), $product, $variant);
 		} catch (NoResultException | NonUniqueResultException) {
 			assert($cart instanceof Cart);
@@ -138,8 +138,8 @@ final class CartManager implements CartManagerInterface
 
 	public function getItemsCount(): int
 	{
-		if ($this->user->isLoggedIn() === false && $this->sessionProvider->getHash() === null) {
-			return 0;
+		if ($this->user->isLoggedIn() === false) {
+			return count($this->getCart(false)->getItems());
 		}
 
 		return count($this->getCartFlushed()->getItems());
@@ -165,15 +165,6 @@ final class CartManager implements CartManagerInterface
 		assert($cart instanceof Cart);
 
 		return $cart->getRuntimeContext()->getFreeDeliveryResolver()->getMinimalPrice($cart, $customer);
-	}
-
-
-	/**
-	 * @deprecated since 2021-12-03, use Price entity instead.
-	 */
-	public function formatPrice(float $price): string
-	{
-		return str_replace(',00', '', number_format($price, 2, ',', ' '));
 	}
 
 

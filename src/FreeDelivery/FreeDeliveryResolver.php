@@ -7,10 +7,11 @@ namespace Baraja\Shop\Cart\FreeDelivery;
 
 use Baraja\EcommerceStandard\DTO\CartInterface;
 use Baraja\EcommerceStandard\DTO\CustomerInterface;
+use Baraja\EcommerceStandard\Service\FreeDeliveryResolverInterface;
 use Baraja\Shop\Currency\CurrencyManagerAccessor;
 use Baraja\Shop\Price\Price;
 
-final class FreeDeliveryResolver
+final class FreeDeliveryResolver implements FreeDeliveryResolverInterface
 {
 	private const DEFAULT_MINIMAL_PRICE = 1_000;
 

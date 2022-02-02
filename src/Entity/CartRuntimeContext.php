@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\Entity;
 
 
+use Baraja\EcommerceStandard\Service\CartRuntimeContextInterface;
 use Baraja\Shop\Cart\FreeDelivery\FreeDeliveryResolver;
 use Baraja\Shop\Currency\CurrencyManagerAccessor;
 
-final class CartRuntimeContext
+final class CartRuntimeContext implements CartRuntimeContextInterface
 {
 	private int $freeDeliveryLimit = 1_000;
 
