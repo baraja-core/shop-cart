@@ -27,7 +27,7 @@ final class FreeDeliveryResolver
 			$customer = $cart->getCustomer();
 		}
 
-		return $this->getMinimalPrice($cart, $customer)->isBigger($cart->getItemsPrice());
+		return $this->getMinimalPrice($cart, $customer)->isBiggerThan($cart->getItemsPrice());
 	}
 
 
