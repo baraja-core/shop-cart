@@ -167,7 +167,9 @@ class Cart implements CartInterface
 		if ($itemsPrice === null) {
 			$itemsPrice = new Price('0', $this->getCurrency());
 		}
-		if ($this->delivery !== null && $itemsPrice->isSmallerThan((string) $this->runtimeContext->getFreeDeliveryLimit())) {
+		if ($this->delivery !== null
+			&& $itemsPrice->isSmallerThan((string) $this->runtimeContext->getFreeDeliveryLimit())
+		) {
 			$sum = bcadd($sum, $this->delivery->getPrice());
 		}
 		if ($this->payment !== null) {

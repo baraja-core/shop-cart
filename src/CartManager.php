@@ -21,7 +21,6 @@ use Baraja\Shop\Cart\Session\NativeSessionProvider;
 use Baraja\Shop\Cart\Session\SessionProvider;
 use Baraja\Shop\ContextAccessor;
 use Baraja\Shop\Currency\CurrencyManagerAccessor;
-use Baraja\Shop\Price\Price;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
