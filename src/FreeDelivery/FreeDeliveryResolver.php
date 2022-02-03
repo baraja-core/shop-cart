@@ -28,7 +28,7 @@ final class FreeDeliveryResolver implements FreeDeliveryResolverInterface
 			$customer = $cart->getCustomer();
 		}
 
-		return $this->getMinimalPrice($cart, $customer)->isBiggerThan($cart->getItemsPrice());
+		return $this->getMinimalPrice($cart, $customer)->isSmallerThan($cart->getItemsPrice());
 	}
 
 
