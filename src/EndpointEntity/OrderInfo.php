@@ -36,7 +36,7 @@ final class OrderInfo implements OrderInfoInterface
 
 
 	/**
-	 * @return array{firstName: string, lastName: string, street: string, city: string, zip: string, companyName: string, ic: string, dic: string}
+	 * @return array{firstName: string, lastName: string, street: string, city: string, zip: string, country: int|null, companyName: string, ic: string, dic: string}
 	 */
 	public function toArray(OrderInfoAddress $address): array
 	{
