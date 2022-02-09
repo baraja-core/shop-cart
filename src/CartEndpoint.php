@@ -151,6 +151,7 @@ final class CartEndpoint extends BaseEndpoint
 	public function postBuy(int $productId, ?int $variantId = null, int $count = 1): void
 	{
 		$product = $this->productRepository->getById($productId);
+		$currency = $this->currencyManager->getCurrencyResolver()->getCurrency();
 
 		$variant = null;
 		if ($product->isVariantProduct()) {
@@ -164,6 +165,19 @@ final class CartEndpoint extends BaseEndpoint
 			}
 		}
 
+		$related = [];
+		foreach ($product->getProductRelatedBasic() as $relatedItem) {
+			$relatedProduct = $relatedItem->getRelatedProduct();
+			$mainImageUrl = $relatedProduct->getMainImage()?->getUrl();
+			$related[] = [
+				'id' => $relatedProduct->getId(),
+				'name' => $relatedProduct->getLabel(),
+				'mainImage' => $mainImageUrl !== null ? ImageGenerator::from($mainImageUrl, ['w' => 200, 'h' => 200]) : null,
+				'price' => (new Price($relatedProduct->getPrice(), $currency))->render(true),
+				'url' => $this->linkSafe('Front:Product:detail', ['slug' => $relatedProduct->getSlug()]),
+			];
+		}
+
 		$cartItem = $this->cartManager->buyProduct($product, $variant, $count);
 
 		$this->sendJson([
@@ -173,6 +187,7 @@ final class CartEndpoint extends BaseEndpoint
 				$cartItem->getVariant(),
 				$cartItem->getCount(),
 			),
+			'related' => $related,
 		]);
 	}
 
