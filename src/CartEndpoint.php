@@ -64,10 +64,12 @@ final class CartEndpoint extends BaseEndpoint
 		$currency = $cart->getCurrency();
 		$products = [];
 		foreach ($cart->getItems() as $cartItem) {
+			$product = $cartItem->getProduct();
+			assert($product instanceof Product);
 			$items[] = [
 				'id' => $cartItem->getId(),
 				'url' => $this->linkSafe(':Front:Product:detail', [
-					'slug' => $cartItem->getProduct()->getSlug(),
+					'slug' => $product->getSlug(),
 				]),
 				'mainImageUrl' => (static function (?ImageInterface $image): ?string {
 					if ($image === null) {
@@ -75,13 +77,13 @@ final class CartEndpoint extends BaseEndpoint
 					}
 
 					return ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]);
-				})($cartItem->getProduct()->getMainImage()),
+				})($product->getMainImage()),
 				'name' => $cartItem->getName(),
 				'count' => $cartItem->getCount(),
 				'price' => $cartItem->getBasicPrice()->render(true),
 				'description' => $cartItem->getDescription(),
 			];
-			$products[] = $cartItem->getProduct();
+			$products[] = $product;
 			$price = bcadd($price, $cartItem->getPrice()->getValue());
 			$priceWithoutVat = bcadd($priceWithoutVat, $cartItem->getPriceWithoutVat()->getValue());
 		}
@@ -438,7 +440,7 @@ final class CartEndpoint extends BaseEndpoint
 
 
 	/**
-	 * @return array{id: int, name: string, mainImage: string|null, price: string, url: string}
+	 * @return array{id: int, name: string, mainImage: string|null, price: string, url: string|null}
 	 */
 	private function formatRelated(Product $product, CurrencyInterface $currency): array
 	{
