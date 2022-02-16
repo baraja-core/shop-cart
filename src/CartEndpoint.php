@@ -8,6 +8,7 @@ namespace Baraja\Shop\Cart;
 use Baraja\AdminBar\User\AdminIdentity;
 use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
+use Baraja\EcommerceStandard\DTO\CurrencyInterface;
 use Baraja\EcommerceStandard\DTO\ImageInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
@@ -23,6 +24,7 @@ use Baraja\Shop\Payment\Entity\Payment;
 use Baraja\Shop\Price\Price;
 use Baraja\Shop\Product\Entity\Product;
 use Baraja\Shop\Product\Entity\ProductVariant;
+use Baraja\Shop\Product\Recommender\ProductRecommenderAccessor;
 use Baraja\Shop\Product\Repository\ProductRepository;
 use Baraja\StructuredApi\Attributes\PublicEndpoint;
 use Baraja\StructuredApi\BaseEndpoint;
@@ -42,6 +44,7 @@ final class CartEndpoint extends BaseEndpoint
 		private OrderManagerInterface $orderManager,
 		private EntityManager $entityManager,
 		private CurrencyManager $currencyManager,
+		private ProductRecommenderAccessor $productRecommender,
 	) {
 		$productRepository = $entityManager->getRepository(Product::class);
 		assert($productRepository instanceof ProductRepository);
@@ -58,6 +61,8 @@ final class CartEndpoint extends BaseEndpoint
 		$price = '0';
 		$priceWithoutVat = '0';
 		$cart = $this->cartManager->getCartFlushed();
+		$currency = $cart->getCurrency();
+		$products = [];
 		foreach ($cart->getItems() as $cartItem) {
 			$items[] = [
 				'id' => $cartItem->getId(),
@@ -76,8 +81,14 @@ final class CartEndpoint extends BaseEndpoint
 				'price' => $cartItem->getBasicPrice()->render(true),
 				'description' => $cartItem->getDescription(),
 			];
+			$products[] = $cartItem->getProduct();
 			$price = bcadd($price, $cartItem->getPrice()->getValue());
 			$priceWithoutVat = bcadd($priceWithoutVat, $cartItem->getPriceWithoutVat()->getValue());
+		}
+
+		$related = [];
+		foreach ($this->productRecommender->get()->getRelatedByCollection($products) as $relatedItem) {
+			$related[] = $this->formatRelated($relatedItem, $currency);
 		}
 
 		$freeDelivery = $cart->getRuntimeContext()->getFreeDeliveryLimit();
@@ -88,6 +99,7 @@ final class CartEndpoint extends BaseEndpoint
 				'final' => (new Price($price, $cart->getCurrency()))->render(),
 				'withoutVat' => (new Price($priceWithoutVat, $cart->getCurrency()))->render(),
 			],
+			'related' => $related,
 		]);
 	}
 
@@ -167,15 +179,7 @@ final class CartEndpoint extends BaseEndpoint
 
 		$related = [];
 		foreach ($product->getProductRelatedBasic() as $relatedItem) {
-			$relatedProduct = $relatedItem->getRelatedProduct();
-			$mainImageUrl = $relatedProduct->getMainImage()?->getUrl();
-			$related[] = [
-				'id' => $relatedProduct->getId(),
-				'name' => $relatedProduct->getLabel(),
-				'mainImage' => $mainImageUrl !== null ? ImageGenerator::from($mainImageUrl, ['w' => 200, 'h' => 200]) : null,
-				'price' => (new Price($relatedProduct->getPrice(), $currency))->render(true),
-				'url' => $this->linkSafe('Front:Product:detail', ['slug' => $relatedProduct->getSlug()]),
-			];
+			$related[] = $this->formatRelated($relatedItem->getRelatedProduct(), $currency);
 		}
 
 		$cartItem = $this->cartManager->buyProduct($product, $variant, $count);
@@ -430,5 +434,22 @@ final class CartEndpoint extends BaseEndpoint
 		}
 
 		return null;
+	}
+
+
+	/**
+	 * @return array{id: int, name: string, mainImage: string|null, price: string, url: string}
+	 */
+	private function formatRelated(Product $product, CurrencyInterface $currency): array
+	{
+		$mainImageUrl = $product->getMainImage()?->getUrl();
+
+		return [
+			'id' => $product->getId(),
+			'name' => $product->getLabel(),
+			'mainImage' => $mainImageUrl !== null ? ImageGenerator::from($mainImageUrl, ['w' => 200, 'h' => 200]) : null,
+			'price' => (new Price($product->getPrice(), $currency))->render(true),
+			'url' => $this->linkSafe('Front:Product:detail', ['slug' => $product->getSlug()]),
+		];
 	}
 }
