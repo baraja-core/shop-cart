@@ -111,13 +111,19 @@ final class CartManager implements CartManagerInterface
 
 	public function buyProduct(ProductInterface $product, ?ProductVariantInterface $variant, int $count = 1): CartItem
 	{
-		$cart = $this->getCartFlushed();
 		if ($variant === null && $product->isVariantProduct() === true) {
 			throw new \InvalidArgumentException(sprintf('Please select variant for product "%s" (%s).',
 				$product->getLabel(),
 				$product->getId(),
 			));
 		}
+		if ($product->isSoldOut()) {
+			throw new \InvalidArgumentException(sprintf('You cannot purchase the product "%s" (%s) because it is sold out.',
+				$product->getLabel(),
+				$product->getId(),
+			));
+		}
+		$cart = $this->getCartFlushed();
 		try {
 			$cartItemRepo = $this->entityManager->getRepository(CartItem::class);
 			assert($cartItemRepo instanceof CartItemRepository);
