@@ -442,7 +442,7 @@ final class CartEndpoint extends BaseEndpoint
 	/**
 	 * @return array{id: int, name: string, mainImage: string|null, price: string, url: string|null}
 	 */
-	private function formatRelated(Product $product, CurrencyInterface $currency): array
+	private function formatRelated(ProductInterface $product, CurrencyInterface $currency): array
 	{
 		$mainImageUrl = $product->getMainImage()?->getUrl();
 

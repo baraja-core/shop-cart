@@ -40,7 +40,6 @@ final class OrderInfo implements OrderInfoInterface
 	 */
 	public function toArray(OrderInfoAddress $address): array
 	{
-		/** @phpstan-ignore-next-line */
 		return array_merge([
 			'firstName' => $this->info->getFirstName(),
 			'lastName' => $this->info->getLastName(),

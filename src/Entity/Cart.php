@@ -214,6 +214,7 @@ class Cart implements CartInterface
 	 */
 	public function getAllItems(): array
 	{
+		/** @phpstan-ignore-next-line */
 		return $this->items->toArray();
 	}
 
