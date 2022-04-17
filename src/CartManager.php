@@ -112,13 +112,15 @@ final class CartManager implements CartManagerInterface
 	public function buyProduct(ProductInterface $product, ?ProductVariantInterface $variant, int $count = 1): CartItem
 	{
 		if ($variant === null && $product->isVariantProduct() === true) {
-			throw new \InvalidArgumentException(sprintf('Please select variant for product "%s" (%s).',
+			throw new \InvalidArgumentException(sprintf(
+				'Please select variant for product "%s" (%s).',
 				$product->getLabel(),
 				$product->getId(),
 			));
 		}
 		if ($product->isSoldOut()) {
-			throw new \InvalidArgumentException(sprintf('You cannot purchase the product "%s" (%s) because it is sold out.',
+			throw new \InvalidArgumentException(sprintf(
+				'You cannot purchase the product "%s" (%s) because it is sold out.',
 				$product->getLabel(),
 				$product->getId(),
 			));
