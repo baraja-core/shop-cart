@@ -64,8 +64,9 @@ class Cart implements CartInterface
 	private CartRuntimeContext $runtimeContext;
 
 
-	public function __construct(string $identifier, Currency $currency)
+	public function __construct(string $identifier, CurrencyInterface $currency)
 	{
+		assert($currency instanceof Currency);
 		$this->identifier = $identifier;
 		$this->currency = $currency;
 		$this->insertedDate = new \DateTimeImmutable;

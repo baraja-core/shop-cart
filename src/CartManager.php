@@ -11,6 +11,7 @@ use Baraja\EcommerceStandard\DTO\PriceInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\CartManagerInterface;
+use Baraja\EcommerceStandard\Service\CurrencyResolverInterface;
 use Baraja\Shop\Cart\Bridge\NetteSessionBridge;
 use Baraja\Shop\Cart\Entity\Cart;
 use Baraja\Shop\Cart\Entity\CartItem;
@@ -19,7 +20,6 @@ use Baraja\Shop\Cart\Entity\CartRepository;
 use Baraja\Shop\Cart\Entity\CartRuntimeContext;
 use Baraja\Shop\Cart\Session\NativeSessionProvider;
 use Baraja\Shop\Cart\Session\SessionProvider;
-use Baraja\Shop\ContextAccessor;
 use Baraja\Shop\Currency\CurrencyManagerAccessor;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
@@ -40,7 +40,7 @@ final class CartManager implements CartManagerInterface
 	public function __construct(
 		private EntityManagerInterface $entityManager,
 		private User $user,
-		private ContextAccessor $context,
+		private CurrencyResolverInterface $currencyResolver,
 		CurrencyManagerAccessor $currencyManager,
 		SessionProvider|Session|null $sessionProvider = null,
 	) {
@@ -77,14 +77,14 @@ final class CartManager implements CartManagerInterface
 				assert($cartRepo instanceof CartRepository);
 				$cart = $cartRepo->getCart($identifier);
 			} catch (NoResultException | NonUniqueResultException) {
-				$cart = new Cart($identifier, $this->context->get()->getCurrency());
+				$cart = new Cart($identifier, $this->currencyResolver->resolveEntity());
 				$this->entityManager->persist($cart);
 			}
 		}
 		if ($cart instanceof Cart) {
 			$cart->setRuntimeContext($this->runtimeContext);
 			if ($cart->isCurrency() === false) { // back compatibility
-				$cart->setCurrency($this->context->get()->getCurrency());
+				$cart->setCurrency($this->currencyResolver->resolveEntity());
 				$flush = true;
 			}
 		}
