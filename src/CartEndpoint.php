@@ -17,6 +17,8 @@ use Baraja\ImageGenerator\ImageGenerator;
 use Baraja\Shop\Cart\DTO\DataLayer;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
+use Baraja\Shop\Cart\Entity\CartVoucher;
+use Baraja\Shop\Cart\Entity\CartVoucherRepository;
 use Baraja\Shop\Currency\CurrencyManager;
 use Baraja\Shop\Customer\Entity\Customer;
 use Baraja\Shop\Delivery\Entity\Delivery;
@@ -38,6 +40,8 @@ final class CartEndpoint extends BaseEndpoint
 
 	private CartItemRepository $cartItemRepository;
 
+	private CartVoucherRepository $cartVoucherRepository;
+
 
 	public function __construct(
 		private CartManager $cartManager,
@@ -52,6 +56,9 @@ final class CartEndpoint extends BaseEndpoint
 		$cartItemRepository = $entityManager->getRepository(CartItem::class);
 		assert($cartItemRepository instanceof CartItemRepository);
 		$this->cartItemRepository = $cartItemRepository;
+		$cartVoucherRepository = $entityManager->getRepository(CartVoucher::class);
+		assert($cartVoucherRepository instanceof CartVoucherRepository);
+		$this->cartVoucherRepository = $cartVoucherRepository;
 	}
 
 
@@ -86,6 +93,17 @@ final class CartEndpoint extends BaseEndpoint
 			$products[] = $product;
 			$price = bcadd($price, $cartItem->getPrice()->getValue());
 			$priceWithoutVat = bcadd($priceWithoutVat, $cartItem->getPriceWithoutVat()->getValue());
+		}
+		foreach ($cart->getSales() as $cartSale) {
+			$items[] = [
+				'id' => sprintf('sale_%d', $cartSale->getId()),
+				'url' => null,
+				'mainImageUrl' => null,
+				'name' => 'Sleva',
+				'count' => 1,
+				'price' => $cartSale->getValue(),
+				'description' => null,
+			];
 		}
 
 		$related = [];
@@ -200,15 +218,31 @@ final class CartEndpoint extends BaseEndpoint
 
 	public function actionCheckVoucher(string $code): void
 	{
+		try {
+			$available = $this->cartVoucherRepository->findByCode($code)->isAvailable();
+		} catch (NoResultException | NonUniqueResultException) {
+			$available = false;
+		}
+
 		$this->sendJson([
-			'status' => false,
+			'status' => $available,
 		]);
 	}
 
 
 	public function postUseVoucher(string $code): void
 	{
-		$this->sendError('Voucher "' . $code . '" does not exist.');
+		try {
+			$voucher = $this->cartVoucherRepository->findByCode($code);
+		} catch (NoResultException | NonUniqueResultException) {
+			$this->sendError(sprintf('Voucher "%s" does not exist.', $code));
+		}
+		if ($voucher->isAvailable() === false) {
+			$this->sendError(sprintf('Voucher "%s" is not available or has been used.', $code));
+		}
+
+		$this->cartManager->useVoucher($voucher);
+		$this->sendOk();
 	}
 
 

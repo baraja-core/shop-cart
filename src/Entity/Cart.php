@@ -50,11 +50,11 @@ class Cart implements CartInterface
 	#[ORM\ManyToOne(targetEntity: Currency::class)]
 	private ?Currency $currency;
 
-	/** @var CartItem[]|Collection */
+	/** @var Collection<CartItem>*/
 	#[ORM\OneToMany(mappedBy: 'cart', targetEntity: CartItem::class)]
 	private Collection $items;
 
-	/** @var CartSale[]|Collection */
+	/** @var Collection<CartSale> */
 	#[ORM\OneToMany(mappedBy: 'cart', targetEntity: CartSale::class)]
 	private Collection $sales;
 

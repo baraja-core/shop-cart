@@ -121,7 +121,7 @@ class CartItem implements CartItemInterface
 	{
 		return new Price(
 			value: $this->getBasicPrice()->getValue() * $this->count,
-			currency:  $this->cart->getCurrency(),
+			currency: $this->cart->getCurrency(),
 		);
 	}
 
