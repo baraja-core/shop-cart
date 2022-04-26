@@ -125,7 +125,7 @@ final class CartEndpoint extends BaseEndpoint
 
 
 	/**
-	 * @param string[] $variantOptions
+	 * @param array<string, string> $variantOptions
 	 */
 	public function postCheckVariantStatus(int $productId, array $variantOptions = []): void
 	{
@@ -138,8 +138,11 @@ final class CartEndpoint extends BaseEndpoint
 			->createQueryBuilder('variant')
 			->where('variant.product = :productId')
 			->setParameter('productId', $productId)
+			->orderBy('variant.relationHash', 'ASC')
 			->getQuery()
 			->getResult();
+
+		$currency = $this->currencyManager->getCurrencyResolver()->getCurrency();
 
 		$exist = false;
 		$variantId = null;
@@ -148,25 +151,60 @@ final class CartEndpoint extends BaseEndpoint
 		$regularPrice = null;
 		$sale = false;
 		$variantEntity = null;
+		/** @var array<string, array<int, array{text: string, value: string, hash: string}>> $variantsFeed */
+		$variantsFeed = [];
+		$variantList = [];
 		if ($variants === []) {
 			$variantPrice = $product->getPrice();
 			$regularPrice = $product->getPrice();
 		} else {
-			foreach ($variants as $variant) {
-				if ($variant->getRelationHash() === $hash) {
+			foreach ($variants as $variantItem) {
+				$variantList[] = [
+					'variantId' => $variantItem->getId(),
+					'hash' => $variantItem->getRelationHash(),
+					'available' => $variantItem->isSoldOut() === false,
+					'price' => (new Price($variantItem->getPrice(), $currency))->render(true),
+					'regularPrice' => (new Price($variantItem->getPrice(false), $currency))->render(true),
+					'sale' => $variantItem->getProduct()->isSale(),
+				];
+				if ($variantItem->getRelationHash() === $hash) {
 					$exist = true;
-					$variantId = $variant->getId();
-					$variantAvailable = $variant->isSoldOut() === false;
-					$variantPrice = $variant->getPrice();
-					$regularPrice = $variant->getPrice(false);
-					$sale = $variant->getProduct()->isSale();
-					$variantEntity = $variant;
-					break;
+					$variantId = $variantItem->getId();
+					$variantAvailable = $variantItem->isSoldOut() === false;
+					$variantPrice = $variantItem->getPrice();
+					$regularPrice = $variantItem->getPrice(false);
+					$sale = $variantItem->getProduct()->isSale();
+					$variantEntity = $variantItem;
+				}
+			}
+			foreach ($variants as $variantItem) {
+				$variantParameters = ProductVariant::unserializeParameters($variantItem->getRelationHash());
+				if ($variantParameters === []) {
+					continue;
+				}
+				if ($this->isVariantCompatibleWithOptions($variantOptions, $variantParameters) === false) {
+					continue;
+				}
+				foreach ($variantParameters as $variantParameterKey => $variantParameterValue) {
+					if (isset($variantsFeed[$variantParameterKey]) === false) {
+						$variantsFeed[$variantParameterKey] = [];
+					}
+					[$tempVariantParams, $tempVariantOptions] = [$variantParameters, $variantOptions];
+					if (isset($tempVariantParams[$variantParameterKey], $tempVariantOptions[$variantParameterKey])) {
+						unset($tempVariantParams[$variantParameterKey], $tempVariantOptions[$variantParameterKey]);
+					}
+					if ($tempVariantParams !== $tempVariantOptions) {
+						continue;
+					}
+					$variantsFeed[$variantParameterKey][] = [
+						'text' => $variantParameterValue,
+						'value' => $variantParameterValue,
+						'id' => $variantItem->getId(),
+						'hash' => $variantItem->getRelationHash(),
+					];
 				}
 			}
 		}
-
-		$currency = $this->currencyManager->getCurrencyResolver()->getCurrency();
 
 		$this->sendJson([
 			'exist' => $exist,
@@ -176,6 +214,8 @@ final class CartEndpoint extends BaseEndpoint
 			'regularPrice' => $regularPrice !== null ? (new Price($regularPrice, $currency))->render(true) : null,
 			'sale' => $sale,
 			'dataLayer' => $this->getDataLayer($product, $variantEntity),
+			'variantList' => $variantList,
+			'variantsFeed' => $variantsFeed,
 		]);
 	}
 
@@ -487,5 +527,24 @@ final class CartEndpoint extends BaseEndpoint
 			'price' => (new Price($product->getPrice(), $currency))->render(true),
 			'url' => $this->linkSafe('Front:Product:detail', ['slug' => $product->getSlug()]),
 		];
+	}
+
+
+	/**
+	 * @param array<string, string> $userOptions
+	 * @param array<string, string> $availableParameters
+	 */
+	private function isVariantCompatibleWithOptions(array $userOptions, array $availableParameters): bool
+	{
+		if ($userOptions === $availableParameters) {
+			return true;
+		}
+		foreach ($availableParameters as $key => $value) {
+			if (($userOptions[$key] ?? null) === $value) {
+				unset($userOptions[$key]);
+			}
+		}
+
+		return count($userOptions) === 1;
 	}
 }
