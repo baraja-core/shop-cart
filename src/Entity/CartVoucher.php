@@ -53,6 +53,9 @@ class CartVoucher implements CartVoucherInterface
 	private Collection $sales;
 
 
+	/**
+	 * @param numeric-string $value
+	 */
 	public function __construct(string $code, string $type, string $value)
 	{
 		if (!in_array($type, self::Types, true)) {

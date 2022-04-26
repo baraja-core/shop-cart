@@ -190,6 +190,7 @@ final class CartManager implements CartManagerInterface
 	public function useVoucher(CartVoucher $voucher, ?CartInterface $cart = null): void
 	{
 		$cart ??= $this->getCartFlushed();
+		assert($cart instanceof Cart);
 		if ($voucher->isAvailable() === false) {
 			throw new \OutOfRangeException(sprintf('Voucher "%s" is not available or has been used.', $voucher->getCode()));
 		}
