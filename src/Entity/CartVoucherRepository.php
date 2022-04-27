@@ -26,4 +26,18 @@ final class CartVoucherRepository extends EntityRepository
 
 		return $voucher;
 	}
+
+
+	/**
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function getFeed(): array
+	{
+		/** @phpstan-ignore-next-line */
+		return $this->createQueryBuilder('voucher')
+			->orderBy('voucher.active', 'ASC')
+			->addOrderBy('voucher.insertedDate', 'DESC')
+			->getQuery()
+			->getArrayResult();
+	}
 }

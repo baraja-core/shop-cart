@@ -22,11 +22,11 @@ class CartVoucher implements CartVoucherInterface
 		TypeFreeProduct = 'freeprod'; // free product
 
 	public const Types = [
-		self::TypeFixValue,
-		self::TypePercentage,
-		self::TypePercentageProduct,
-		self::TypePercentageCategory,
-		self::TypeFreeProduct,
+		self::TypeFixValue => 'Fix sale value in default currency for whole order',
+		self::TypePercentage => 'Sale x % for whole order',
+		self::TypePercentageProduct => 'Sale x % for given product',
+		self::TypePercentageCategory => 'Sale x % for any product in given category',
+		self::TypeFreeProduct => 'Free product',
 	];
 
 	#[ORM\Id]
@@ -84,9 +84,10 @@ class CartVoucher implements CartVoucherInterface
 	 */
 	public function __construct(string $code, string $type, string $value)
 	{
-		if (!in_array($type, self::Types, true)) {
+		$type = strtolower($type);
+		if (!isset(self::Types[$type])) {
 			throw new \InvalidArgumentException(
-				sprintf('Type "%s" is not valid option from "%s".', $type, implode('", "', self::Types)),
+				sprintf('Type "%s" is not valid option from "%s".', $type, implode('", "', array_keys(self::Types))),
 			);
 		}
 		$code = strtoupper(trim((string) preg_replace('/[a-zA-Z0-9-]/', '', $code)));
@@ -161,6 +162,17 @@ class CartVoucher implements CartVoucherInterface
 
 	public function setPercentage(?int $percentage): void
 	{
+		if ($percentage === 0) {
+			$percentage = null;
+		}
+		if ($percentage !== null) {
+			if ($percentage < 0) {
+				$percentage *= -1;
+			}
+			if ($percentage > 100) {
+				$percentage = 100;
+			}
+		}
 		$this->percentage = $percentage;
 	}
 
@@ -173,6 +185,9 @@ class CartVoucher implements CartVoucherInterface
 
 	public function setUsageLimit(?int $usageLimit): void
 	{
+		if ($usageLimit !== null && $usageLimit < 1) {
+			$usageLimit = 1;
+		}
 		$this->usageLimit = $usageLimit;
 	}
 

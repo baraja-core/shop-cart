@@ -94,14 +94,12 @@ final class VoucherManager
 		assert($voucher instanceof CartVoucher);
 		$type = $voucher->getType();
 		$percentage = (string) $voucher->getPercentage();
-		/** @param numeric-string $price */
-		$renderPrice = fn(string $price): string => $this->currencyManagerAccessor
-			->get()
-			->getMainCurrency()
-			->renderPrice($price);
 
 		if ($type === CartVoucher::TypeFixValue) {
-			return sprintf('Sleva %s na cokoli.', $renderPrice($voucher->getValue()));
+			return sprintf(
+				'Sleva %s na cokoli.',
+				$this->currencyManagerAccessor->get()->getMainCurrency()->renderPrice($voucher->getValue()),
+			);
 		}
 		if ($type === CartVoucher::TypePercentage) {
 			return sprintf('Sleva %s %% na cokoli.', $percentage);
