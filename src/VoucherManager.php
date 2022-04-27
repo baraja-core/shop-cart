@@ -6,6 +6,7 @@ namespace Baraja\Shop\Cart;
 
 
 use Baraja\EcommerceStandard\DTO\CartInterface;
+use Baraja\EcommerceStandard\DTO\CartVoucherInterface;
 use Baraja\Shop\Cart\Entity\Cart;
 use Baraja\Shop\Cart\Entity\CartSale;
 use Baraja\Shop\Cart\Entity\CartVoucher;
@@ -88,10 +89,12 @@ final class VoucherManager
 	}
 
 
-	public function formatMessage(CartVoucher $voucher): string
+	public function formatMessage(CartVoucherInterface $voucher): string
 	{
+		assert($voucher instanceof CartVoucher);
 		$type = $voucher->getType();
 		$percentage = (string) $voucher->getPercentage();
+		/** @param numeric-string $price */
 		$renderPrice = fn(string $price): string => $this->currencyManagerAccessor
 			->get()
 			->getMainCurrency()
