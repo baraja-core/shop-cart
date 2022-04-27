@@ -52,6 +52,9 @@ final class CartVoucherEndpoint extends BaseEndpoint
 	}
 
 
+	/**
+	 * @param numeric-string $value
+	 */
 	public function postNewVoucher(
 		string $code,
 		string $type,
