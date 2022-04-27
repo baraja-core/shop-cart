@@ -17,5 +17,8 @@ final class ShopCartExtension extends CompilerExtension
 
 		$builder->addDefinition($this->prefix('cartManager'))
 			->setFactory(CartManager::class);
+
+		$builder->addDefinition($this->prefix('voucherManager'))
+			->setFactory(VoucherManager::class);
 	}
 }

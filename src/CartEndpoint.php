@@ -45,6 +45,7 @@ final class CartEndpoint extends BaseEndpoint
 
 	public function __construct(
 		private CartManager $cartManager,
+		private VoucherManager $voucherManager,
 		private OrderManagerInterface $orderManager,
 		private EntityManager $entityManager,
 		private CurrencyManager $currencyManager,
@@ -89,20 +90,23 @@ final class CartEndpoint extends BaseEndpoint
 				'count' => $cartItem->getCount(),
 				'price' => $cartItem->getBasicPrice()->render(true),
 				'description' => $cartItem->getDescription(),
+				'sale' => false,
 			];
 			$products[] = $product;
 			$price = bcadd($price, $cartItem->getPrice()->getValue());
 			$priceWithoutVat = bcadd($priceWithoutVat, $cartItem->getPriceWithoutVat()->getValue());
 		}
 		foreach ($cart->getSales() as $cartSale) {
+			$voucher = $cartSale->getVoucher();
 			$items[] = [
 				'id' => sprintf('sale_%d', $cartSale->getId()),
 				'url' => null,
 				'mainImageUrl' => null,
-				'name' => 'Sleva',
+				'name' => $voucher !== null ? $this->voucherManager->formatMessage($voucher) : 'Sleva',
 				'count' => 1,
-				'price' => $cartSale->getValue(),
+				'price' => null,
 				'description' => null,
+				'sale' => true,
 			];
 		}
 
@@ -259,13 +263,16 @@ final class CartEndpoint extends BaseEndpoint
 	public function actionCheckVoucher(string $code): void
 	{
 		try {
-			$available = $this->cartVoucherRepository->findByCode($code)->isAvailable();
+			$voucher = $this->cartVoucherRepository->findByCode($code);
+			$available = $voucher->isAvailable();
 		} catch (NoResultException | NonUniqueResultException) {
 			$available = false;
+			$voucher = null;
 		}
 
 		$this->sendJson([
 			'status' => $available,
+			'info' => $available && $voucher !== null ? $this->voucherManager->getVoucherInfo($voucher) : null,
 		]);
 	}
 
@@ -281,7 +288,7 @@ final class CartEndpoint extends BaseEndpoint
 			$this->sendError(sprintf('Voucher "%s" is not available or has been used.', $code));
 		}
 
-		$this->cartManager->useVoucher($voucher);
+		$this->voucherManager->useVoucher($voucher, $this->cartManager->getCartFlushed());
 		$this->sendOk();
 	}
 

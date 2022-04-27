@@ -13,7 +13,13 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'shop__cart_sale')]
 class CartSale implements CartSaleInterface
 {
-	public const Types = [CartVoucher::TypeFixValue, CartVoucher::TypePercentage, CartVoucher::TypeFreeProduct];
+	public const Types = [
+		CartVoucher::TypeFixValue,
+		CartVoucher::TypePercentage,
+		CartVoucher::TypePercentageProduct,
+		CartVoucher::TypePercentageCategory,
+		CartVoucher::TypeFreeProduct,
+	];
 
 	#[ORM\Id]
 	#[ORM\Column(type: 'integer', unique: true, options: ['unsigned' => true])]

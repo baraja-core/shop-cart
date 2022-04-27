@@ -18,8 +18,6 @@ use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
 use Baraja\Shop\Cart\Entity\CartRepository;
 use Baraja\Shop\Cart\Entity\CartRuntimeContext;
-use Baraja\Shop\Cart\Entity\CartSale;
-use Baraja\Shop\Cart\Entity\CartVoucher;
 use Baraja\Shop\Cart\Session\NativeSessionProvider;
 use Baraja\Shop\Cart\Session\SessionProvider;
 use Baraja\Shop\Currency\CurrencyManagerAccessor;
@@ -183,28 +181,6 @@ final class CartManager implements CartManagerInterface
 			$this->entityManager->remove($item);
 		}
 		$this->entityManager->remove($cart);
-		$this->entityManager->flush();
-	}
-
-
-	public function useVoucher(CartVoucher $voucher, ?CartInterface $cart = null): void
-	{
-		$cart ??= $this->getCartFlushed();
-		assert($cart instanceof Cart);
-		if ($voucher->isAvailable() === false) {
-			throw new \OutOfRangeException(sprintf('Voucher "%s" is not available or has been used.', $voucher->getCode()));
-		}
-		if ($voucher->isMustBeUnique() && $cart->getSales() !== []) {
-			throw new \OutOfRangeException(sprintf(
-				'Voucher "%s" can not be combined with other vouchers, but %d has been used.',
-				$voucher->getCode(),
-				count($cart->getSales()),
-			));
-		}
-		$voucher->markAsUsed();
-		$sale = new CartSale($cart, $voucher->getType(), $voucher->getValue());
-		$sale->setVoucher($voucher);
-		$this->entityManager->persist($sale);
 		$this->entityManager->flush();
 	}
 
