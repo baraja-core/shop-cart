@@ -1,5 +1,5 @@
-Vue.component("cms-cart-voucher-default", {
-  template: `<div class="container-fluid">
+Vue.component('cms-cart-voucher-default', {
+	template: `<div class="container-fluid">
 	<div class="row mt-2">
 		<div class="col">
 			<h1>Voucher manager</h1>
@@ -66,37 +66,37 @@ Vue.component("cms-cart-voucher-default", {
 		<label class="w-100">Valid to:<b-form-datepicker v-model="form.validTo" /></label>
 	</b-modal>
 </div>`,
-  data() {
-    return {
-      feed: null,
-      types: [],
-      form: {
-        code: "",
-        type: "",
-        value: "",
-        percentage: "",
-        usageLimit: "",
-        mustBeUnique: "",
-        note: "",
-        validFrom: "",
-        validTo: "",
-      },
-    };
-  },
-  created() {
-    this.sync();
-  },
-  methods: {
-    sync() {
-      axiosApi.get("cart-voucher").then((req) => {
-        this.feed = req.data.feed;
-        this.types = req.data.types;
-      });
-    },
-    generateRandomCode() {
-      axiosApi.get("cart-voucher/generate-random-code").then((req) => {
-        this.form.code = req.data.code;
-      });
-    },
-  },
+	data() {
+		return {
+			feed: null,
+			types: [],
+			form: {
+				code: '',
+				type: '',
+				value: '',
+				percentage: '',
+				usageLimit: '',
+				mustBeUnique: '',
+				note: '',
+				validFrom: '',
+				validTo: '',
+			},
+		};
+	},
+	created() {
+		this.sync();
+	},
+	methods: {
+		sync() {
+			axiosApi.get('cart-voucher').then((req) => {
+				this.feed = req.data.feed;
+				this.types = req.data.types;
+			});
+		},
+		generateRandomCode() {
+			axiosApi.get('cart-voucher/generate-random-code').then((req) => {
+				this.form.code = req.data.code;
+			});
+		},
+	},
 });
