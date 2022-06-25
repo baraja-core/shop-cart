@@ -30,6 +30,7 @@ use Baraja\Shop\Product\Recommender\ProductRecommenderAccessor;
 use Baraja\Shop\Product\Repository\ProductRepository;
 use Baraja\StructuredApi\Attributes\PublicEndpoint;
 use Baraja\StructuredApi\BaseEndpoint;
+use Baraja\Url\Url;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 
@@ -84,7 +85,11 @@ final class CartEndpoint extends BaseEndpoint
 						return null;
 					}
 
-					return ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]);
+					return sprintf(
+						'%s/%s',
+						Url::get()->getBaseUrl(),
+						ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]),
+					);
 				})($product->getMainImage()),
 				'name' => $cartItem->getName(),
 				'count' => $cartItem->getCount(),
@@ -525,12 +530,18 @@ final class CartEndpoint extends BaseEndpoint
 	 */
 	private function formatRelated(ProductInterface $product, CurrencyInterface $currency): array
 	{
-		$mainImageUrl = $product->getMainImage()?->getUrl();
+		$relativePath = $product->getMainImage()?->getRelativePath();
 
 		return [
 			'id' => $product->getId(),
 			'name' => $product->getLabel(),
-			'mainImage' => $mainImageUrl !== null ? ImageGenerator::from($mainImageUrl, ['w' => 200, 'h' => 200]) : null,
+			'mainImage' => $relativePath !== null
+				? sprintf(
+					'%s/%s',
+					Url::get()->getBaseUrl(),
+					ImageGenerator::from($relativePath, ['w' => 150, 'h' => 150]),
+				)
+				: null,
 			'price' => (new Price($product->getPrice(), $currency))->render(true),
 			'url' => $this->linkSafe('Front:Product:detail', ['slug' => $product->getSlug()]),
 		];
