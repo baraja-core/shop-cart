@@ -14,7 +14,12 @@ use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
 use Baraja\ImageGenerator\ImageGenerator;
+use Baraja\Shop\Cart\DTO\CartCustomer;
+use Baraja\Shop\Cart\DTO\CartItemResponse;
+use Baraja\Shop\Cart\DTO\CartResponse;
+use Baraja\Shop\Cart\DTO\CreateCustomerResponse;
 use Baraja\Shop\Cart\DTO\DataLayer;
+use Baraja\Shop\Cart\DTO\RelatedProductResponse;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
 use Baraja\Shop\Cart\Entity\CartVoucher;
@@ -64,7 +69,7 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	public function actionDefault(): void
+	public function actionDefault(): CartResponse
 	{
 		$items = [];
 		$price = '0';
@@ -75,12 +80,12 @@ final class CartEndpoint extends BaseEndpoint
 		foreach ($cart->getItems() as $cartItem) {
 			$product = $cartItem->getProduct();
 			assert($product instanceof Product);
-			$items[] = [
-				'id' => $cartItem->getId(),
-				'url' => $this->linkSafe(':Front:Product:detail', [
+			$items[] = new CartItemResponse(
+				id: $cartItem->getId(),
+				url: $this->linkSafe(':Front:Product:detail', [
 					'slug' => $product->getSlug(),
 				]),
-				'mainImageUrl' => (static function (?ImageInterface $image): ?string {
+				mainImageUrl: (static function (?ImageInterface $image): ?string {
 					if ($image === null) {
 						return null;
 					}
@@ -91,28 +96,28 @@ final class CartEndpoint extends BaseEndpoint
 						ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]),
 					);
 				})($product->getMainImage()),
-				'name' => $cartItem->getName(),
-				'count' => $cartItem->getCount(),
-				'price' => $cartItem->getBasicPrice()->render(true),
-				'description' => $cartItem->getDescription(),
-				'sale' => false,
-			];
+				name: $cartItem->getName(),
+				count: $cartItem->getCount(),
+				price: $cartItem->getBasicPrice()->render(true),
+				description: $cartItem->getDescription(),
+				sale: false,
+			);
 			$products[] = $product;
 			$price = bcadd($price, $cartItem->getPrice()->getValue());
 			$priceWithoutVat = bcadd($priceWithoutVat, $cartItem->getPriceWithoutVat()->getValue());
 		}
 		foreach ($cart->getSales() as $cartSale) {
 			$voucher = $cartSale->getVoucher();
-			$items[] = [
-				'id' => sprintf('sale_%d', $cartSale->getId()),
-				'url' => null,
-				'mainImageUrl' => null,
-				'name' => $voucher !== null ? $this->voucherManager->formatMessage($voucher) : 'Sleva',
-				'count' => 1,
-				'price' => null,
-				'description' => null,
-				'sale' => true,
-			];
+			$items[] = new CartItemResponse(
+				id: sprintf('sale_%d', $cartSale->getId()),
+				url: null,
+				mainImageUrl: null,
+				name: $voucher !== null ? $this->voucherManager->formatMessage($voucher) : 'Sleva',
+				count: 1,
+				price: null,
+				description: null,
+				sale: true,
+			);
 		}
 
 		$related = [];
@@ -121,15 +126,17 @@ final class CartEndpoint extends BaseEndpoint
 		}
 
 		$freeDelivery = $cart->getRuntimeContext()->getFreeDeliveryLimit();
-		$this->sendJson([
-			'items' => $items,
-			'priceToFreeDelivery' => $price >= $freeDelivery ? null : (new Price((int) ($freeDelivery - $price), $cart->getCurrency()))->render(),
-			'price' => [
+		return new CartResponse(
+			items: $items,
+			priceToFreeDelivery: $price >= $freeDelivery ? null : (new Price(
+				(int) ($freeDelivery - $price), $cart->getCurrency()
+			))->render(),
+			price: [
 				'final' => (new Price($price, $cart->getCurrency()))->render(),
 				'withoutVat' => (new Price($priceWithoutVat, $cart->getCurrency()))->render(),
 			],
-			'related' => $related,
-		]);
+			related: $related,
+		);
 	}
 
 
@@ -242,7 +249,7 @@ final class CartEndpoint extends BaseEndpoint
 				}
 			}
 			if ($variant === null) {
-				$this->sendError('Varianta "' . $variantId . '" neexistuje. Vyberte jinou variantu produktu.');
+				$this->sendError(sprintf('Varianta "%s" neexistuje. Vyberte jinou variantu produktu.', $variantId));
 			}
 		}
 
@@ -317,7 +324,7 @@ final class CartEndpoint extends BaseEndpoint
 	{
 		$cartItem = $this->getItemById($id);
 		if ($cartItem === null) {
-			$this->sendError('Cart item "' . $id . '" does not exist.');
+			$this->sendError(sprintf('Cart item "%d" does not exist.', $id));
 		}
 		$this->entityManager->remove($cartItem);
 		$this->entityManager->flush();
@@ -336,7 +343,6 @@ final class CartEndpoint extends BaseEndpoint
 	{
 		$cart = $this->cartManager->getCartFlushed();
 
-		/** @var Delivery $deliveryEntity */
 		$deliveryEntity = $this->entityManager->getRepository(Delivery::class)
 			->createQueryBuilder('delivery')
 			->where('delivery.code = :code')
@@ -344,8 +350,8 @@ final class CartEndpoint extends BaseEndpoint
 			->setMaxResults(1)
 			->getQuery()
 			->getSingleResult();
+		assert($deliveryEntity instanceof Delivery);
 
-		/** @var Payment $paymentEntity */
 		$paymentEntity = $this->entityManager->getRepository(Payment::class)
 			->createQueryBuilder('payment')
 			->where('payment.code = :code')
@@ -353,6 +359,7 @@ final class CartEndpoint extends BaseEndpoint
 			->setMaxResults(1)
 			->getQuery()
 			->getSingleResult();
+		assert($paymentEntity instanceof Payment);
 
 		$cart->setDelivery($deliveryEntity);
 		$cart->setPayment($paymentEntity);
@@ -363,7 +370,7 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	public function actionCustomer(): void
+	public function actionCustomer(): CartCustomer
 	{
 		$items = [];
 		$cart = $this->cartManager->getCartFlushed();
@@ -389,35 +396,36 @@ final class CartEndpoint extends BaseEndpoint
 			];
 		}
 
-		$this->sendJson([
-			'loggedIn' => $this->getUser()->isLoggedIn(),
-			'items' => $items,
-			'price' => $cart->getPrice()->render(true),
-			'itemsPrice' => $cart->getItemsPrice()->render(true),
-			'deliveryPrice' => $cart->getDeliveryPrice()->render(true),
-			'delivery' => [
+		return new CartCustomer(
+			loggedIn: $this->getUser()->isLoggedIn(),
+			items: $items,
+			price: $cart->getPrice()->render(true),
+			itemsPrice: $cart->getItemsPrice()->render(true),
+			deliveryPrice: $cart->getDeliveryPrice()->render(true),
+			delivery: [
 				'name' => $delivery->getLabel(),
 				'price' => (new Price($delivery->getPrice(), $cart->getCurrency()))->render(true),
 			],
-			'payment' => [
+			payment: [
 				'name' => $payment->getName(),
 				'price' => (new Price($payment->getPrice(), $cart->getCurrency()))->render(true),
 			],
-		]);
+		);
 	}
 
 
-	public function postCustomer(OrderInfo $orderInfo): void
+	public function postCustomer(OrderInfo $orderInfo): CreateCustomerResponse
 	{
 		if ($orderInfo->getInfo()->isGdpr() === false) {
 			$this->sendError('Musíte souhlasit s podmínkami služby.');
 		}
 		$cart = $this->cartManager->getCartFlushed();
 		$order = $this->orderManager->createOrder($orderInfo, $cart);
-		$this->sendOk([
-			'id' => $order->getId(),
-			'hash' => $order->getHash(),
-		]);
+
+		return new CreateCustomerResponse(
+			id: $order->getId(),
+			hash: $order->getHash(),
+		);
 	}
 
 
@@ -439,10 +447,9 @@ final class CartEndpoint extends BaseEndpoint
 			$identity = $this->getUser()->getIdentity();
 			$customer = null;
 			if ($identity instanceof AdminIdentity) {
-				/** @var User $adminUser */
 				$adminUser = $this->entityManager->getRepository(User::class)->find($this->getUser()->getId());
+				assert($adminUser instanceof User);
 				try {
-					/** @var Customer $customer */
 					$customer = $this->entityManager->getRepository(Customer::class)
 						->createQueryBuilder('customer')
 						->where('customer.email = :email')
@@ -450,12 +457,13 @@ final class CartEndpoint extends BaseEndpoint
 						->setMaxResults(1)
 						->getQuery()
 						->getSingleResult();
+					assert($customer instanceof Customer);
 				} catch (NoResultException | NonUniqueResultException) {
 					// Admin customer does not exist.
 				}
 			} else {
-				/** @var Customer $customer */
 				$customer = $this->entityManager->getRepository(Customer::class)->find($this->getUser()->getId());
+				assert($customer instanceof Customer);
 			}
 			if ($customer !== null) {
 				$return = array_merge($return, [
@@ -525,26 +533,23 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	/**
-	 * @return array{id: int, name: string, mainImage: string|null, price: string, url: string|null}
-	 */
-	private function formatRelated(ProductInterface $product, CurrencyInterface $currency): array
+	private function formatRelated(ProductInterface $product, CurrencyInterface $currency): RelatedProductResponse
 	{
 		$relativePath = $product->getMainImage()?->getRelativePath();
 
-		return [
-			'id' => $product->getId(),
-			'name' => $product->getLabel(),
-			'mainImage' => $relativePath !== null
+		return new RelatedProductResponse(
+			id: $product->getId(),
+			name: $product->getLabel(),
+			mainImage: $relativePath !== null
 				? sprintf(
 					'%s/%s',
 					Url::get()->getBaseUrl(),
 					ImageGenerator::from($relativePath, ['w' => 150, 'h' => 150]),
 				)
 				: null,
-			'price' => (new Price($product->getPrice(), $currency))->render(true),
-			'url' => $this->linkSafe('Front:Product:detail', ['slug' => $product->getSlug()]),
-		];
+			price: (new Price($product->getPrice(), $currency))->render(true),
+			url: $this->linkSafe('Front:Product:detail', ['slug' => $product->getSlug()]),
+		);
 	}
 
 
