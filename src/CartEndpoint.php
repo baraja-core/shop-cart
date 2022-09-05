@@ -15,11 +15,16 @@ use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
 use Baraja\ImageGenerator\ImageGenerator;
 use Baraja\Shop\Cart\DTO\CartCustomer;
+use Baraja\Shop\Cart\DTO\CartDeliveryItemResponse;
 use Baraja\Shop\Cart\DTO\CartItemResponse;
+use Baraja\Shop\Cart\DTO\CartPaymentItemResponse;
 use Baraja\Shop\Cart\DTO\CartResponse;
 use Baraja\Shop\Cart\DTO\CreateCustomerResponse;
 use Baraja\Shop\Cart\DTO\DataLayer;
+use Baraja\Shop\Cart\DTO\DeliveryAndPaymentResponse;
 use Baraja\Shop\Cart\DTO\RelatedProductResponse;
+use Baraja\Shop\Cart\Entity\CartDeliveryAndPaymentRelation;
+use Baraja\Shop\Cart\Entity\CartDeliveryAndPaymentRelationRepository;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
 use Baraja\Shop\Cart\Entity\CartVoucher;
@@ -75,6 +80,8 @@ final class CartEndpoint extends BaseEndpoint
 		$price = '0';
 		$priceWithoutVat = '0';
 		$cart = $this->cartManager->getCartFlushed();
+		$delivery = $cart->getDelivery();
+		$payment = $cart->getPayment();
 		$currency = $cart->getCurrency();
 		$products = [];
 		foreach ($cart->getItems() as $cartItem) {
@@ -85,7 +92,9 @@ final class CartEndpoint extends BaseEndpoint
 				url: $this->linkSafe(':Front:Product:detail', [
 					'slug' => $product->getSlug(),
 				]),
-				mainImageUrl: (static function (?ImageInterface $image): ?string {
+				slug: $product->getSlug(),
+				mainImageUrl: (static function (?ImageInterface $image): ?string
+				{
 					if ($image === null) {
 						return null;
 					}
@@ -95,7 +104,9 @@ final class CartEndpoint extends BaseEndpoint
 						Url::get()->getBaseUrl(),
 						ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]),
 					);
-				})($product->getMainImage()),
+				})(
+					$product->getMainImage()
+				),
 				name: $cartItem->getName(),
 				count: $cartItem->getCount(),
 				price: $cartItem->getBasicPrice()->render(true),
@@ -111,6 +122,7 @@ final class CartEndpoint extends BaseEndpoint
 			$items[] = new CartItemResponse(
 				id: sprintf('sale_%d', $cartSale->getId()),
 				url: null,
+				slug: null,
 				mainImageUrl: null,
 				name: $voucher !== null ? $this->voucherManager->formatMessage($voucher) : 'Sleva',
 				count: 1,
@@ -126,6 +138,7 @@ final class CartEndpoint extends BaseEndpoint
 		}
 
 		$freeDelivery = $cart->getRuntimeContext()->getFreeDeliveryLimit();
+
 		return new CartResponse(
 			items: $items,
 			priceToFreeDelivery: $price >= $freeDelivery ? null : (new Price(
@@ -135,6 +148,8 @@ final class CartEndpoint extends BaseEndpoint
 				'final' => (new Price($price, $cart->getCurrency()))->render(),
 				'withoutVat' => (new Price($priceWithoutVat, $cart->getCurrency()))->render(),
 			],
+			delivery: $delivery !== null ? CartDeliveryItemResponse::fromEntity($cart, $delivery) : null,
+			payment: $payment !== null ? CartPaymentItemResponse::fromEntity($cart, $payment) : null,
 			related: $related,
 		);
 	}
@@ -277,7 +292,7 @@ final class CartEndpoint extends BaseEndpoint
 		try {
 			$voucher = $this->cartVoucherRepository->findByCode($code);
 			$available = $voucher->isAvailable();
-		} catch (NoResultException | NonUniqueResultException) {
+		} catch (NoResultException|NonUniqueResultException) {
 			$available = false;
 			$voucher = null;
 		}
@@ -293,7 +308,7 @@ final class CartEndpoint extends BaseEndpoint
 	{
 		try {
 			$voucher = $this->cartVoucherRepository->findByCode($code);
-		} catch (NoResultException | NonUniqueResultException) {
+		} catch (NoResultException|NonUniqueResultException) {
 			$this->sendError(sprintf('Voucher "%s" does not exist.', $code));
 		}
 		if ($voucher->isAvailable() === false) {
@@ -336,6 +351,45 @@ final class CartEndpoint extends BaseEndpoint
 				$cartItem->getCount(),
 			),
 		]);
+	}
+
+
+	public function actionDeliveryAndPayment(): DeliveryAndPaymentResponse
+	{
+		$cart = $this->cartManager->getCart();
+		$cartDelivery = $cart->getDelivery();
+
+		/** @var Delivery[] $deliveries */
+		$deliveries = $this->entityManager->getRepository(Delivery::class)
+			->createQueryBuilder('delivery')
+			->select('PARTIAL delivery.{id, code, name, price}')
+			->getQuery()
+			->getResult();
+
+		$relationRepository = $this->entityManager->getRepository(CartDeliveryAndPaymentRelation::class);
+		assert($relationRepository instanceof CartDeliveryAndPaymentRelationRepository);
+
+		return new DeliveryAndPaymentResponse(
+			price: $cart->getItemsPrice()->render(true),
+			deliveries: array_map(
+				static fn(Delivery $delivery): CartDeliveryItemResponse => CartDeliveryItemResponse::fromEntity(
+					$cart,
+					$delivery,
+				),
+				$deliveries,
+			),
+			payments: array_map(
+				static fn(Payment $payment): CartPaymentItemResponse => CartPaymentItemResponse::fromEntity(
+					$cart,
+					$payment,
+				),
+				$cartDelivery !== null
+					? $relationRepository->getCompatiblePaymentsByDelivery($cartDelivery)
+					: [],
+			),
+			isFreeDelivery: $this->cartManager->isFreeDelivery(),
+			isFreePayment: true,
+		);
 	}
 
 
@@ -402,14 +456,8 @@ final class CartEndpoint extends BaseEndpoint
 			price: $cart->getPrice()->render(true),
 			itemsPrice: $cart->getItemsPrice()->render(true),
 			deliveryPrice: $cart->getDeliveryPrice()->render(true),
-			delivery: [
-				'name' => $delivery->getLabel(),
-				'price' => (new Price($delivery->getPrice(), $cart->getCurrency()))->render(true),
-			],
-			payment: [
-				'name' => $payment->getName(),
-				'price' => (new Price($payment->getPrice(), $cart->getCurrency()))->render(true),
-			],
+			delivery: CartDeliveryItemResponse::fromEntity($cart, $delivery),
+			payment: CartPaymentItemResponse::fromEntity($cart, $payment),
 		);
 	}
 
@@ -458,7 +506,7 @@ final class CartEndpoint extends BaseEndpoint
 						->getQuery()
 						->getSingleResult();
 					assert($customer instanceof Customer);
-				} catch (NoResultException | NonUniqueResultException) {
+				} catch (NoResultException|NonUniqueResultException) {
 					// Admin customer does not exist.
 				}
 			} else {
@@ -525,7 +573,7 @@ final class CartEndpoint extends BaseEndpoint
 				id: $id,
 				cartId: $cart->isFlushed() ? $cart->getId() : null,
 			);
-		} catch (NoResultException | NonUniqueResultException) {
+		} catch (NoResultException|NonUniqueResultException) {
 			// Silence is golden.
 		}
 

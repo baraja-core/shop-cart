@@ -9,8 +9,6 @@ final class CartCustomer
 {
 	/**
 	 * @param array<int, mixed> $items
-	 * @param array{name: string, price: string} $delivery
-	 * @param array{name: string, price: string} $payment
 	 */
 	public function __construct(
 		public bool $loggedIn,
@@ -18,8 +16,8 @@ final class CartCustomer
 		public string $price,
 		public string $itemsPrice,
 		public string $deliveryPrice,
-		public array $delivery,
-		public array $payment,
+		public CartDeliveryItemResponse $delivery,
+		public CartPaymentItemResponse $payment,
 	) {
 	}
 }

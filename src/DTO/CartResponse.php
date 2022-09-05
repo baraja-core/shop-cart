@@ -14,8 +14,10 @@ final class CartResponse
 	 */
 	public function __construct(
 		public array $items,
-		public string $priceToFreeDelivery,
+		public ?string $priceToFreeDelivery,
 		public array $price,
+		public ?CartDeliveryItemResponse $delivery,
+		public ?CartPaymentItemResponse $payment,
 		public array $related,
 	) {
 	}

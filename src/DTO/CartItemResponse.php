@@ -10,6 +10,7 @@ final class CartItemResponse
 	public function __construct(
 		public int|string $id,
 		public ?string $url,
+		public ?string $slug,
 		public ?string $mainImageUrl,
 		public string $name,
 		public int $count,
