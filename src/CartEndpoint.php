@@ -9,7 +9,6 @@ use Baraja\AdminBar\User\AdminIdentity;
 use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
 use Baraja\EcommerceStandard\DTO\CurrencyInterface;
-use Baraja\EcommerceStandard\DTO\ImageInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
@@ -87,26 +86,16 @@ final class CartEndpoint extends BaseEndpoint
 		foreach ($cart->getItems() as $cartItem) {
 			$product = $cartItem->getProduct();
 			assert($product instanceof Product);
+			$image = $product->getMainImage();
 			$items[] = new CartItemResponse(
 				id: $cartItem->getId(),
 				url: $this->linkSafe(':Front:Product:detail', [
 					'slug' => $product->getSlug(),
 				]),
 				slug: $product->getSlug(),
-				mainImageUrl: (static function (?ImageInterface $image): ?string
-				{
-					if ($image === null) {
-						return null;
-					}
-
-					return sprintf(
-						'%s/%s',
-						Url::get()->getBaseUrl(),
-						ImageGenerator::from($image->getRelativePath(), ['w' => 150, 'h' => 150]),
-					);
-				})(
-					$product->getMainImage()
-				),
+				mainImageUrl: $image !== null
+					? ImageGenerator::from($image->getUrl(), ['w' => 200, 'h' => 200])
+					: null,
 				name: $cartItem->getName(),
 				count: $cartItem->getCount(),
 				price: $cartItem->getBasicPrice()->render(true),
