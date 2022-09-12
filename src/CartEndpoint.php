@@ -9,6 +9,7 @@ use Baraja\AdminBar\User\AdminIdentity;
 use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
 use Baraja\EcommerceStandard\DTO\CurrencyInterface;
+use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
@@ -368,7 +369,7 @@ final class CartEndpoint extends BaseEndpoint
 				$deliveries,
 			),
 			payments: array_map(
-				static fn(Payment $payment): CartPaymentItemResponse => CartPaymentItemResponse::fromEntity(
+				static fn(PaymentInterface $payment): CartPaymentItemResponse => CartPaymentItemResponse::fromEntity(
 					$cart,
 					$payment,
 				),
