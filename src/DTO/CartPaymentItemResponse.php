@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\DTO;
 
 
-use Baraja\Shop\Cart\Entity\Cart;
-use Baraja\Shop\Payment\Entity\Payment;
+use Baraja\EcommerceStandard\DTO\CartInterface;
+use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\Shop\Price\Price;
 
 final class CartPaymentItemResponse
@@ -21,7 +21,7 @@ final class CartPaymentItemResponse
 	}
 
 
-	public static function fromEntity(Cart $cart, Payment $payment): self
+	public static function fromEntity(CartInterface $cart, PaymentInterface $payment): self
 	{
 		return new self(
 			id: $payment->getId(),

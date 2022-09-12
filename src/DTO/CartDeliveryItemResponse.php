@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\DTO;
 
 
+use Baraja\EcommerceStandard\DTO\CartInterface;
 use Baraja\EcommerceStandard\DTO\DeliveryInterface;
-use Baraja\Shop\Cart\Entity\Cart;
 use Baraja\Shop\Price\Price;
 
 final class CartDeliveryItemResponse
@@ -20,7 +20,7 @@ final class CartDeliveryItemResponse
 	}
 
 
-	public static function fromEntity(Cart $cart, DeliveryInterface $delivery): self
+	public static function fromEntity(CartInterface $cart, DeliveryInterface $delivery): self
 	{
 		return new self(
 			id: $delivery->getId(),
