@@ -56,17 +56,6 @@ final class CartManager implements CartManagerInterface
 	}
 
 
-	/**
-	 * @deprecated since 2021-11-12, use CartRuntimeContext.
-	 */
-	public static function getFreeDeliveryLimit(): float
-	{
-		trigger_error(__METHOD__ . ': Method is deprecated, use CartRuntimeContext instead.');
-
-		return 1_000;
-	}
-
-
 	public function getCart(bool $flush = true): CartInterface
 	{
 		$identifier = $this->getIdentifier();
