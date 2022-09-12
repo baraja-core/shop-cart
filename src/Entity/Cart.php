@@ -168,6 +168,13 @@ class Cart implements CartInterface
 		if ($itemsPrice === null) {
 			$itemsPrice = new Price('0', $this->getCurrency());
 		}
+		foreach ($this->getItems() as $item) {
+			foreach ($item->getProduct()->getTags() as $tag) {
+				if ($tag->isFreeDelivery()) {
+					return new Price('0', $this->getCurrency());
+				}
+			}
+		}
 		if ($this->delivery !== null
 			&& $itemsPrice->isSmallerThan((string) $this->runtimeContext->getFreeDeliveryLimit())
 		) {
