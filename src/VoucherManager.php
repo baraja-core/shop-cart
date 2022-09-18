@@ -39,31 +39,6 @@ final class VoucherManager
 	}
 
 
-	/**
-	 * @return array{
-	 *    code: string,
-	 *    message: string,
-	 *    type: string,
-	 *    value: numeric-string,
-	 *    available: bool,
-	 *    active: bool,
-	 *    mustBeUnique: bool
-	 * }
-	 */
-	public function getVoucherInfo(CartVoucher $voucher): array
-	{
-		return [
-			'code' => $voucher->getCode(),
-			'message' => $this->formatMessage($voucher),
-			'type' => $voucher->getType(),
-			'value' => $voucher->getValue(),
-			'available' => $voucher->isAvailable(),
-			'active' => $voucher->isActive(),
-			'mustBeUnique' => $voucher->isMustBeUnique(),
-		];
-	}
-
-
 	public function useVoucher(CartVoucher $voucher, CartInterface $cart): void
 	{
 		assert($cart instanceof Cart);

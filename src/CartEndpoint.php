@@ -19,6 +19,7 @@ use Baraja\Shop\Cart\DTO\CartDeliveryItemResponse;
 use Baraja\Shop\Cart\DTO\CartItemResponse;
 use Baraja\Shop\Cart\DTO\CartPaymentItemResponse;
 use Baraja\Shop\Cart\DTO\CartResponse;
+use Baraja\Shop\Cart\DTO\CartVoucherResponse;
 use Baraja\Shop\Cart\DTO\CreateCustomerResponse;
 use Baraja\Shop\Cart\DTO\DataLayer;
 use Baraja\Shop\Cart\DTO\DeliveryAndPaymentResponse;
@@ -132,7 +133,8 @@ final class CartEndpoint extends BaseEndpoint
 		return new CartResponse(
 			items: $items,
 			priceToFreeDelivery: $price >= $freeDelivery ? null : (new Price(
-				(int) ($freeDelivery - $price), $cart->getCurrency()
+				(int) ($freeDelivery - $price),
+				$cart->getCurrency(),
 			))->render(),
 			price: [
 				'final' => (new Price($price, $cart->getCurrency()))->render(),
@@ -277,20 +279,22 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	public function actionCheckVoucher(string $code): void
+	public function actionCheckVoucher(string $code): CartVoucherResponse
 	{
 		try {
 			$voucher = $this->cartVoucherRepository->findByCode($code);
-			$available = $voucher->isAvailable();
+
+			return CartVoucherResponse::fromEntity(
+				voucher: $voucher,
+				message: $this->voucherManager->formatMessage($voucher),
+			);
 		} catch (NoResultException|NonUniqueResultException) {
-			$available = false;
-			$voucher = null;
+			// Silence is golden.
 		}
 
-		$this->sendJson([
-			'status' => $available,
-			'info' => $available && $voucher !== null ? $this->voucherManager->getVoucherInfo($voucher) : null,
-		]);
+		return new CartVoucherResponse(
+			status: false,
+		);
 	}
 
 
