@@ -9,7 +9,7 @@ use Baraja\EcommerceStandard\DTO\CartSaleInterface;
 use Baraja\EcommerceStandard\DTO\CartVoucherInterface;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: CartItemRepository::class)]
+#[ORM\Entity(repositoryClass: CartSaleRepository::class)]
 #[ORM\Table(name: 'shop__cart_sale')]
 class CartSale implements CartSaleInterface
 {

@@ -8,6 +8,8 @@ namespace Baraja\Shop\Cart;
 use Baraja\AdminBar\User\AdminIdentity;
 use Baraja\Cms\User\Entity\User;
 use Baraja\Doctrine\EntityManager;
+use Baraja\EcommerceStandard\DTO\CartItemInterface;
+use Baraja\EcommerceStandard\DTO\CartSaleInterface;
 use Baraja\EcommerceStandard\DTO\CurrencyInterface;
 use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
@@ -28,6 +30,8 @@ use Baraja\Shop\Cart\Entity\CartDeliveryAndPaymentRelation;
 use Baraja\Shop\Cart\Entity\CartDeliveryAndPaymentRelationRepository;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
+use Baraja\Shop\Cart\Entity\CartSale;
+use Baraja\Shop\Cart\Entity\CartSaleRepository;
 use Baraja\Shop\Cart\Entity\CartVoucher;
 use Baraja\Shop\Cart\Entity\CartVoucherRepository;
 use Baraja\Shop\Currency\CurrencyManager;
@@ -52,6 +56,8 @@ final class CartEndpoint extends BaseEndpoint
 
 	private CartItemRepository $cartItemRepository;
 
+	private CartSaleRepository $cartSaleRepository;
+
 	private CartVoucherRepository $cartVoucherRepository;
 
 
@@ -64,13 +70,16 @@ final class CartEndpoint extends BaseEndpoint
 		private ProductRecommenderAccessor $productRecommender,
 	) {
 		$productRepository = $entityManager->getRepository(Product::class);
-		assert($productRepository instanceof ProductRepository);
-		$this->productRepository = $productRepository;
 		$cartItemRepository = $entityManager->getRepository(CartItem::class);
-		assert($cartItemRepository instanceof CartItemRepository);
-		$this->cartItemRepository = $cartItemRepository;
+		$cartSaleRepository = $entityManager->getRepository(CartSale::class);
 		$cartVoucherRepository = $entityManager->getRepository(CartVoucher::class);
+		assert($productRepository instanceof ProductRepository);
+		assert($cartItemRepository instanceof CartItemRepository);
+		assert($cartSaleRepository instanceof CartSaleRepository);
 		assert($cartVoucherRepository instanceof CartVoucherRepository);
+		$this->productRepository = $productRepository;
+		$this->cartItemRepository = $cartItemRepository;
+		$this->cartSaleRepository = $cartSaleRepository;
 		$this->cartVoucherRepository = $cartVoucherRepository;
 	}
 
@@ -318,8 +327,9 @@ final class CartEndpoint extends BaseEndpoint
 	{
 		$item = $this->getItemById($id);
 		if ($item !== null) {
+			$this->checkItemInCurrentCart($item);
 			if ($count === 0) {
-				$this->actionDeleteItem($id);
+				$this->actionDeleteItem((string) $id);
 			}
 			$item->setCount($count);
 			$this->entityManager->flush();
@@ -329,21 +339,33 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	public function actionDeleteItem(int $id): void
+	public function actionDeleteItem(string $id): void
 	{
-		$cartItem = $this->getItemById($id);
-		if ($cartItem === null) {
-			$this->sendError(sprintf('Cart item "%d" does not exist.', $id));
+		if (preg_match('/^sale_(\d+)$/', $id, $saleParts) === 1) {
+			assert(isset($saleParts[1]));
+			try {
+				$cartItem = $this->cartSaleRepository->getById((int) $saleParts[1]);
+				$cartItem->getVoucher()?->markAsUnused();
+			} catch (NoResultException|NonUniqueResultException) {
+				$cartItem = null;
+			}
+		} else {
+			$cartItem = $this->getItemById((int) $id);
 		}
+		if ($cartItem === null) {
+			$this->sendError(sprintf('Cart item "%s" does not exist.', $id));
+		}
+		$this->checkItemInCurrentCart($cartItem);
 		$this->entityManager->remove($cartItem);
 		$this->entityManager->flush();
 
 		$this->sendOk([
-			'dataLayer' => $this->getDataLayer(
-				$cartItem->getProduct(),
-				$cartItem->getVariant(),
-				$cartItem->getCount(),
-			),
+			'dataLayer' => $cartItem instanceof CartItem
+				? $this->getDataLayer(
+					$cartItem->getProduct(),
+					$cartItem->getVariant(),
+					$cartItem->getCount(),
+				) : [],
 		]);
 	}
 
@@ -611,5 +633,28 @@ final class CartEndpoint extends BaseEndpoint
 		}
 
 		return count($userOptions) === 1;
+	}
+
+
+	private function checkItemInCurrentCart(CartItem|CartSale|null $item): void
+	{
+		if ($item === null) {
+			return;
+		}
+
+		$cart = $this->cartManager->getCart(false);
+		if ($item instanceof CartItem) {
+			$ids = array_map(static fn(CartItemInterface $item): int => $item->getId(), $cart->getAllItems());
+		} else {
+			$ids = array_map(static fn(CartSaleInterface $item): int => $item->getId(), $cart->getSales());
+		}
+
+		if (in_array($item->getId(), $ids, true) === false) {
+			throw new \LogicException(sprintf(
+				'Security issue: Cart item "%s" is not in available item list: "%s".',
+				$item->getId(),
+				implode('", "', $ids),
+			));
+		}
 	}
 }

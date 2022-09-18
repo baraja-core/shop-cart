@@ -14,6 +14,23 @@ final class CartVoucherRepository extends EntityRepository
 	/**
 	 * @throws NoResultException|NonUniqueResultException
 	 */
+	public function findById(int $id): CartVoucher
+	{
+		$voucher = $this->createQueryBuilder('voucher')
+			->where('voucher.id = :id')
+			->setParameter('id', $id)
+			->setMaxResults(1)
+			->getQuery()
+			->getSingleResult();
+		assert($voucher instanceof CartVoucher);
+
+		return $voucher;
+	}
+
+
+	/**
+	 * @throws NoResultException|NonUniqueResultException
+	 */
 	public function findByCode(string $code): CartVoucher
 	{
 		$voucher = $this->createQueryBuilder('voucher')

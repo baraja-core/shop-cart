@@ -124,6 +124,16 @@ class CartVoucher implements CartVoucherInterface
 	}
 
 
+	public function markAsUnused(): void
+	{
+		$this->usedDate = new \DateTimeImmutable;
+		$this->setUsedCount($this->getUsedCount() - 1);
+		if ($this->isAvailable() === true) {
+			$this->setActive(true);
+		}
+	}
+
+
 	public function getCode(): string
 	{
 		return $this->code;
