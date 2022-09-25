@@ -415,6 +415,7 @@ final class CartEndpoint extends BaseEndpoint
 		?string $payment = null,
 		?int $branch = null,
 	): void {
+		$cart = $this->cartManager->getCartFlushed();
 		if ($delivery !== null) {
 			$deliveryEntity = $this->entityManager->getRepository(Delivery::class)
 				->createQueryBuilder('delivery')
@@ -424,6 +425,9 @@ final class CartEndpoint extends BaseEndpoint
 				->getQuery()
 				->getSingleResult();
 			assert($deliveryEntity instanceof Delivery);
+			if ($cart->getDelivery()?->getId() !== $deliveryEntity->getId()) {
+				$cart->setPayment(null);
+			}
 			$this->cartManager->setDelivery($deliveryEntity);
 		}
 		if ($payment !== null) {
@@ -438,7 +442,6 @@ final class CartEndpoint extends BaseEndpoint
 			$this->cartManager->setPayment($paymentEntity);
 		}
 		if ($branch !== null) {
-			$cart = $this->cartManager->getCartFlushed();
 			$cart->setDeliveryBranchId($branch);
 		}
 
