@@ -11,6 +11,7 @@ use Baraja\Doctrine\EntityManager;
 use Baraja\EcommerceStandard\DTO\CartItemInterface;
 use Baraja\EcommerceStandard\DTO\CartSaleInterface;
 use Baraja\EcommerceStandard\DTO\CurrencyInterface;
+use Baraja\EcommerceStandard\DTO\DeliveryInterface;
 use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
@@ -404,36 +405,42 @@ final class CartEndpoint extends BaseEndpoint
 					: [],
 			),
 			isFreeDelivery: $this->cartManager->isFreeDelivery(),
-			isFreePayment: true,
+			isFreePayment: $this->cartManager->isFreePayment(),
 		);
 	}
 
 
-	public function postDeliveryAndPayments(string $delivery, string $payment, ?int $branch = null): void
-	{
-		$cart = $this->cartManager->getCartFlushed();
-
-		$deliveryEntity = $this->entityManager->getRepository(Delivery::class)
-			->createQueryBuilder('delivery')
-			->where('delivery.code = :code')
-			->setParameter('code', $delivery)
-			->setMaxResults(1)
-			->getQuery()
-			->getSingleResult();
-		assert($deliveryEntity instanceof Delivery);
-
-		$paymentEntity = $this->entityManager->getRepository(Payment::class)
-			->createQueryBuilder('payment')
-			->where('payment.code = :code')
-			->setParameter('code', $payment)
-			->setMaxResults(1)
-			->getQuery()
-			->getSingleResult();
-		assert($paymentEntity instanceof Payment);
-
-		$cart->setDelivery($deliveryEntity);
-		$cart->setPayment($paymentEntity);
-		$cart->setDeliveryBranchId($branch);
+	public function postDeliveryAndPayments(
+		?string $delivery = null,
+		?string $payment = null,
+		?int $branch = null,
+	): void {
+		if ($delivery !== null) {
+			$deliveryEntity = $this->entityManager->getRepository(Delivery::class)
+				->createQueryBuilder('delivery')
+				->where('delivery.code = :code')
+				->setParameter('code', $delivery)
+				->setMaxResults(1)
+				->getQuery()
+				->getSingleResult();
+			assert($deliveryEntity instanceof Delivery);
+			$this->cartManager->setDelivery($deliveryEntity);
+		}
+		if ($payment !== null) {
+			$paymentEntity = $this->entityManager->getRepository(Payment::class)
+				->createQueryBuilder('payment')
+				->where('payment.code = :code')
+				->setParameter('code', $payment)
+				->setMaxResults(1)
+				->getQuery()
+				->getSingleResult();
+			assert($paymentEntity instanceof Payment);
+			$this->cartManager->setPayment($paymentEntity);
+		}
+		if ($branch !== null) {
+			$cart = $this->cartManager->getCartFlushed();
+			$cart->setDeliveryBranchId($branch);
+		}
 
 		$this->entityManager->flush();
 		$this->sendOk();

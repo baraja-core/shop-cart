@@ -7,6 +7,8 @@ namespace Baraja\Shop\Cart;
 
 use Baraja\EcommerceStandard\DTO\CartInterface;
 use Baraja\EcommerceStandard\DTO\CustomerInterface;
+use Baraja\EcommerceStandard\DTO\DeliveryInterface;
+use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\EcommerceStandard\DTO\PriceInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
@@ -14,6 +16,8 @@ use Baraja\EcommerceStandard\Service\CartManagerInterface;
 use Baraja\EcommerceStandard\Service\CurrencyResolverInterface;
 use Baraja\Shop\Cart\Bridge\NetteSessionBridge;
 use Baraja\Shop\Cart\Entity\Cart;
+use Baraja\Shop\Cart\Entity\CartDeliveryAndPaymentRelation;
+use Baraja\Shop\Cart\Entity\CartDeliveryAndPaymentRelationRepository;
 use Baraja\Shop\Cart\Entity\CartItem;
 use Baraja\Shop\Cart\Entity\CartItemRepository;
 use Baraja\Shop\Cart\Entity\CartRepository;
@@ -151,6 +155,15 @@ final class CartManager implements CartManagerInterface
 	}
 
 
+	public function isFreePayment(?CartInterface $cart = null): bool
+	{
+		$cart ??= $this->getCart(false);
+		assert($cart instanceof Cart);
+
+		return true; // TODO: Implement me!
+	}
+
+
 	public function getFreeDeliveryMinimalPrice(
 		?CartInterface $cart = null,
 		?CustomerInterface $customer = null,
@@ -171,6 +184,35 @@ final class CartManager implements CartManagerInterface
 		}
 		$this->entityManager->remove($cart);
 		$this->entityManager->flush();
+	}
+
+
+	public function setDelivery(DeliveryInterface $delivery): void
+	{
+		$cart = $this->getCart(false);
+		$cart->setDelivery($delivery);
+	}
+
+
+	public function setPayment(PaymentInterface $payment): void
+	{
+		$cart = $this->getCart(false);
+		$delivery = $cart->getDelivery();
+		if ($delivery === null) {
+			throw new \InvalidArgumentException('Payment can not be selected when delivery does not exist.');
+		}
+
+		$relationRepository = $this->entityManager->getRepository(CartDeliveryAndPaymentRelation::class);
+		assert($relationRepository instanceof CartDeliveryAndPaymentRelationRepository);
+		if ($relationRepository->isCompatibleDeliveryAndPayment($delivery, $payment) === false) {
+			throw new \InvalidArgumentException(sprintf(
+				'Payment "%s" is not compatible with selected delivery "%s".',
+				$payment->getCode(),
+				$delivery->getCode(),
+			));
+		}
+
+		$cart->setPayment($payment);
 	}
 
 
