@@ -12,6 +12,7 @@ use Baraja\Shop\Payment\Entity\Payment;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CartDeliveryAndPaymentRelationRepository::class)]
+#[ORM\UniqueConstraint(name: 'shop__cart_delivery_and_payment_relation_delivery_payment', columns: ['delivery_id', 'payment_id'])]
 #[ORM\Table(name: 'shop__cart_delivery_and_payment_relation')]
 class CartDeliveryAndPaymentRelation
 {
