@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
+use Baraja\CAS\User;
 use Baraja\EcommerceStandard\DTO\CartInterface;
 use Baraja\EcommerceStandard\DTO\CustomerInterface;
 use Baraja\EcommerceStandard\DTO\DeliveryInterface;
@@ -29,7 +30,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
 use Nette\Http\Session;
-use Nette\Security\User;
 use Nette\Utils\Random;
 
 final class CartManager implements CartManagerInterface
@@ -219,13 +219,7 @@ final class CartManager implements CartManagerInterface
 	private function getIdentifier(): string
 	{
 		if ($this->user->isLoggedIn()) {
-			$userId = $this->user->getId();
-			if (is_numeric($userId) || is_string($userId)) {
-				return 'user_' . substr(md5((string) $userId), 0, 27);
-			}
-			throw new \LogicException(
-				sprintf('User id must be a scalar, but type "%s" given.', get_debug_type($userId)),
-			);
+			return 'user_' . substr(md5((string) $this->user->getId()), 0, 27);
 		}
 		$identifier = $this->sessionProvider->getHash();
 		if ($identifier === null) {

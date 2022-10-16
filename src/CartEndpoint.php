@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart;
 
 
-use Baraja\AdminBar\User\AdminIdentity;
-use Baraja\Cms\User\Entity\User;
+use Baraja\CAS\User;
 use Baraja\Doctrine\EntityManager;
 use Baraja\EcommerceStandard\DTO\CartItemInterface;
 use Baraja\EcommerceStandard\DTO\CartSaleInterface;
 use Baraja\EcommerceStandard\DTO\CurrencyInterface;
-use Baraja\EcommerceStandard\DTO\DeliveryInterface;
 use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
@@ -69,6 +67,7 @@ final class CartEndpoint extends BaseEndpoint
 		private EntityManager $entityManager,
 		private CurrencyManager $currencyManager,
 		private ProductRecommenderAccessor $productRecommender,
+		private User $user,
 	) {
 		$productRepository = $entityManager->getRepository(Product::class);
 		$cartItemRepository = $entityManager->getRepository(CartItem::class);
@@ -477,7 +476,7 @@ final class CartEndpoint extends BaseEndpoint
 		}
 
 		return new CartCustomer(
-			loggedIn: $this->getUser()->isLoggedIn(),
+			loggedIn: $this->user->isLoggedIn(),
 			items: $items,
 			price: $cart->getPrice()->render(true),
 			itemsPrice: $cart->getItemsPrice()->render(true),
@@ -517,17 +516,15 @@ final class CartEndpoint extends BaseEndpoint
 			'companyName' => '',
 			'ic' => '',
 		];
-		if ($this->getUser()->isLoggedIn()) {
-			$identity = $this->getUser()->getIdentity();
+		if ($this->user->isLoggedIn()) {
+			$identity = $this->user->getIdentityEntity();
 			$customer = null;
-			if ($identity instanceof AdminIdentity) {
-				$adminUser = $this->entityManager->getRepository(User::class)->find($this->getUser()->getId());
-				assert($adminUser instanceof User);
+			if ($identity !== null) {
 				try {
 					$customer = $this->entityManager->getRepository(Customer::class)
 						->createQueryBuilder('customer')
 						->where('customer.email = :email')
-						->setParameter('email', $adminUser->getEmail())
+						->setParameter('email', $identity->getEmail())
 						->setMaxResults(1)
 						->getQuery()
 						->getSingleResult();
@@ -535,9 +532,6 @@ final class CartEndpoint extends BaseEndpoint
 				} catch (NoResultException|NonUniqueResultException) {
 					// Admin customer does not exist.
 				}
-			} else {
-				$customer = $this->entityManager->getRepository(Customer::class)->find($this->getUser()->getId());
-				assert($customer instanceof Customer);
 			}
 			if ($customer !== null) {
 				$return = array_merge($return, [
