@@ -8,7 +8,7 @@ namespace Baraja\Shop\Cart\DTO;
 final class CartCustomer
 {
 	/**
-	 * @param array<int, mixed> $items
+	 * @param array<int, CartCustomerItem> $items
 	 */
 	public function __construct(
 		public bool $loggedIn,

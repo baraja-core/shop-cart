@@ -15,13 +15,20 @@ use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
 use Baraja\ImageGenerator\ImageGenerator;
+use Baraja\Shop\Cart\DTO\BuyResponse;
 use Baraja\Shop\Cart\DTO\CartCustomer;
+use Baraja\Shop\Cart\DTO\CartCustomerItem;
 use Baraja\Shop\Cart\DTO\CartDeliveryItemResponse;
 use Baraja\Shop\Cart\DTO\CartItemResponse;
 use Baraja\Shop\Cart\DTO\CartPaymentItemResponse;
+use Baraja\Shop\Cart\DTO\CartPrice;
 use Baraja\Shop\Cart\DTO\CartResponse;
 use Baraja\Shop\Cart\DTO\CartVoucherResponse;
+use Baraja\Shop\Cart\DTO\CheckVariantFeedItem;
+use Baraja\Shop\Cart\DTO\CheckVariantItem;
+use Baraja\Shop\Cart\DTO\CheckVariantStatusResponse;
 use Baraja\Shop\Cart\DTO\CreateCustomerResponse;
+use Baraja\Shop\Cart\DTO\CustomerDefaultInfoResponse;
 use Baraja\Shop\Cart\DTO\DataLayer;
 use Baraja\Shop\Cart\DTO\DeliveryAndPaymentResponse;
 use Baraja\Shop\Cart\DTO\RelatedProductResponse;
@@ -44,6 +51,8 @@ use Baraja\Shop\Product\Recommender\ProductRecommenderAccessor;
 use Baraja\Shop\Product\Repository\ProductRepository;
 use Baraja\StructuredApi\Attributes\PublicEndpoint;
 use Baraja\StructuredApi\BaseEndpoint;
+use Baraja\StructuredApi\Response\Status\ErrorResponse;
+use Baraja\StructuredApi\Response\Status\OkResponse;
 use Baraja\Url\Url;
 use Doctrine\ORM\NonUniqueResultException;
 use Doctrine\ORM\NoResultException;
@@ -145,10 +154,10 @@ final class CartEndpoint extends BaseEndpoint
 				(int) ($freeDelivery - $price),
 				$cart->getCurrency(),
 			))->render(),
-			price: [
-				'final' => (new Price($price, $cart->getCurrency()))->render(),
-				'withoutVat' => (new Price($priceWithoutVat, $cart->getCurrency()))->render(),
-			],
+			price: new CartPrice(
+				final: (new Price($price, $cart->getCurrency()))->render(),
+				withoutVat: (new Price($priceWithoutVat, $cart->getCurrency()))->render(),
+			),
 			delivery: $delivery !== null ? CartDeliveryItemResponse::fromEntity($cart, $delivery) : null,
 			payment: $payment !== null ? CartPaymentItemResponse::fromEntity($cart, $payment) : null,
 			related: $related,
@@ -159,7 +168,7 @@ final class CartEndpoint extends BaseEndpoint
 	/**
 	 * @param array<string, string> $variantOptions
 	 */
-	public function postCheckVariantStatus(int $productId, array $variantOptions = []): void
+	public function postCheckVariantStatus(int $productId, array $variantOptions = []): CheckVariantStatusResponse
 	{
 		$product = $this->productRepository->getById($productId);
 
@@ -183,7 +192,7 @@ final class CartEndpoint extends BaseEndpoint
 		$regularPrice = null;
 		$sale = false;
 		$variantEntity = null;
-		/** @var array<string, array<int, array{text: string, value: string, hash: string}>> $variantsFeed */
+		/** @var array<string, array<int, CheckVariantFeedItem>> $variantsFeed */
 		$variantsFeed = [];
 		$variantList = [];
 		if ($variants === []) {
@@ -191,14 +200,14 @@ final class CartEndpoint extends BaseEndpoint
 			$regularPrice = $product->getPrice();
 		} else {
 			foreach ($variants as $variantItem) {
-				$variantList[] = [
-					'variantId' => $variantItem->getId(),
-					'hash' => $variantItem->getRelationHash(),
-					'available' => $variantItem->isSoldOut() === false,
-					'price' => (new Price($variantItem->getPrice(), $currency))->render(true),
-					'regularPrice' => (new Price($variantItem->getPrice(false), $currency))->render(true),
-					'sale' => $variantItem->getProduct()->isSale(),
-				];
+				$variantList[] = new CheckVariantItem(
+					variantId: $variantItem->getId(),
+					hash: $variantItem->getRelationHash(),
+					available: $variantItem->isSoldOut() === false,
+					price: (new Price($variantItem->getPrice(), $currency))->render(true),
+					regularPrice: (new Price($variantItem->getPrice(false), $currency))->render(true),
+					sale: $variantItem->getProduct()->isSale(),
+				);
 				if ($variantItem->getRelationHash() === $hash) {
 					$exist = true;
 					$variantId = $variantItem->getId();
@@ -211,10 +220,7 @@ final class CartEndpoint extends BaseEndpoint
 			}
 			foreach ($variants as $variantItem) {
 				$variantParameters = ProductVariant::unserializeParameters($variantItem->getRelationHash());
-				if ($variantParameters === []) {
-					continue;
-				}
-				if ($this->isVariantCompatibleWithOptions($variantOptions, $variantParameters) === false) {
+				if ($variantParameters === [] || !$this->isVariantCompatible($variantOptions, $variantParameters)) {
 					continue;
 				}
 				foreach ($variantParameters as $variantParameterKey => $variantParameterValue) {
@@ -228,31 +234,31 @@ final class CartEndpoint extends BaseEndpoint
 					if ($tempVariantParams !== $tempVariantOptions) {
 						continue;
 					}
-					$variantsFeed[$variantParameterKey][] = [
-						'text' => $variantParameterValue,
-						'value' => $variantParameterValue,
-						'id' => $variantItem->getId(),
-						'hash' => $variantItem->getRelationHash(),
-					];
+					$variantsFeed[$variantParameterKey][] = new CheckVariantFeedItem(
+						text: $variantParameterValue,
+						value: $variantParameterValue,
+						id: $variantItem->getId(),
+						hash: $variantItem->getRelationHash(),
+					);
 				}
 			}
 		}
 
-		$this->sendJson([
-			'exist' => $exist,
-			'variantId' => $variantId,
-			'available' => $variantAvailable,
-			'price' => $variantPrice !== null ? (new Price($variantPrice, $currency))->render(true) : null,
-			'regularPrice' => $regularPrice !== null ? (new Price($regularPrice, $currency))->render(true) : null,
-			'sale' => $sale,
-			'dataLayer' => $this->getDataLayer($product, $variantEntity),
-			'variantList' => $variantList,
-			'variantsFeed' => $variantsFeed,
-		]);
+		return new CheckVariantStatusResponse(
+			exist: $exist,
+			variantId: $variantId,
+			available: $variantAvailable,
+			price: $variantPrice !== null ? (new Price($variantPrice, $currency))->render(true) : null,
+			regularPrice: $regularPrice !== null ? (new Price($regularPrice, $currency))->render(true) : null,
+			sale: $sale,
+			dataLayer: $this->getDataLayer($product, $variantEntity),
+			variantList: $variantList,
+			variantsFeed: $variantsFeed,
+		);
 	}
 
 
-	public function postBuy(int $productId, ?int $variantId = null, int $count = 1): void
+	public function postBuy(int $productId, ?int $variantId = null, int $count = 1): BuyResponse
 	{
 		$product = $this->productRepository->getById($productId);
 		$currency = $this->currencyManager->getCurrencyResolver()->getCurrency();
@@ -265,7 +271,7 @@ final class CartEndpoint extends BaseEndpoint
 				}
 			}
 			if ($variant === null) {
-				$this->sendError(sprintf('Varianta "%s" neexistuje. Vyberte jinou variantu produktu.', $variantId));
+				ErrorResponse::invoke(sprintf('Varianta "%s" neexistuje. Vyberte jinou variantu produktu.', $variantId));
 			}
 		}
 
@@ -276,15 +282,15 @@ final class CartEndpoint extends BaseEndpoint
 
 		$cartItem = $this->cartManager->buyProduct($product, $variant, $count);
 
-		$this->sendJson([
-			'count' => $this->cartManager->getItemsCount(),
-			'dataLayer' => $this->getDataLayer(
-				$cartItem->getProduct(),
-				$cartItem->getVariant(),
-				$cartItem->getCount(),
+		return new BuyResponse(
+			count: $this->cartManager->getItemsCount(),
+			dataLayer:  $this->getDataLayer(
+				product: $cartItem->getProduct(),
+				variant: $cartItem->getVariant(),
+				quantity: $cartItem->getCount(),
 			),
-			'related' => $related,
-		]);
+			related: $related,
+		);
 	}
 
 
@@ -307,23 +313,24 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	public function postUseVoucher(string $code): void
+	public function postUseVoucher(string $code): OkResponse
 	{
 		try {
 			$voucher = $this->cartVoucherRepository->findByCode($code);
 		} catch (NoResultException|NonUniqueResultException) {
-			$this->sendError(sprintf('Voucher "%s" does not exist.', $code));
+			ErrorResponse::invoke(sprintf('Voucher "%s" does not exist.', $code));
 		}
 		if ($voucher->isAvailable() === false) {
-			$this->sendError(sprintf('Voucher "%s" is not available or has been used.', $code));
+			ErrorResponse::invoke(sprintf('Voucher "%s" is not available or has been used.', $code));
 		}
 
 		$this->voucherManager->useVoucher($voucher, $this->cartManager->getCartFlushed());
-		$this->sendOk();
+
+		return new OkResponse;
 	}
 
 
-	public function actionChangeItemsCount(int $id, int $count): void
+	public function actionChangeItemsCount(int $id, int $count): OkResponse
 	{
 		$item = $this->getItemById($id);
 		if ($item !== null) {
@@ -335,7 +342,7 @@ final class CartEndpoint extends BaseEndpoint
 			$this->entityManager->flush();
 		}
 
-		$this->sendOk();
+		return new OkResponse;
 	}
 
 
@@ -413,7 +420,7 @@ final class CartEndpoint extends BaseEndpoint
 		?string $delivery = null,
 		?string $payment = null,
 		?int $branch = null,
-	): void {
+	): OkResponse {
 		$cart = $this->cartManager->getCartFlushed();
 		if ($delivery !== null) {
 			$deliveryEntity = $this->entityManager->getRepository(Delivery::class)
@@ -445,7 +452,8 @@ final class CartEndpoint extends BaseEndpoint
 		}
 
 		$this->entityManager->flush();
-		$this->sendOk();
+
+		return new OkResponse;
 	}
 
 
@@ -462,17 +470,17 @@ final class CartEndpoint extends BaseEndpoint
 		}
 		foreach ($cart->getItems() as $item) {
 			$img = $item->getMainImageRelativePath();
-			$items[] = [
-				'id' => $item->getId(),
-				'mainImage' => $img !== null
+			$items[] = new CartCustomerItem(
+				id: $item->getId(),
+				mainImage: $img !== null
 					? ImageGenerator::from($img, ['w' => 96, 'h' => 96])
 					: null,
-				'url' => $this->linkSafe('Front:Product:detail', [
+				url: $this->linkSafe('Front:Product:detail', [
 					'slug' => $item->getProduct()->getSlug(),
 				]),
-				'name' => $item->getName(),
-				'price' => $item->getPrice(),
-			];
+				name: $item->getName(),
+				price: $item->getPrice(),
+			);
 		}
 
 		return new CartCustomer(
@@ -502,20 +510,9 @@ final class CartEndpoint extends BaseEndpoint
 	}
 
 
-	public function actionCustomerDefaultInfo(): void
+	public function actionCustomerDefaultInfo(): CustomerDefaultInfoResponse
 	{
-		$return = [
-			'ready' => false,
-			'firstName' => '',
-			'lastName' => '',
-			'email' => '',
-			'phone' => '',
-			'street' => '',
-			'city' => '',
-			'zip' => '',
-			'companyName' => '',
-			'ic' => '',
-		];
+		$return = new CustomerDefaultInfoResponse;
 		if ($this->user->isLoggedIn()) {
 			$identity = $this->user->getIdentityEntity();
 			$customer = null;
@@ -534,22 +531,20 @@ final class CartEndpoint extends BaseEndpoint
 				}
 			}
 			if ($customer !== null) {
-				$return = array_merge($return, [
-					'ready' => true,
-					'firstName' => $customer->getFirstName(),
-					'lastName' => $customer->getLastName(),
-					'email' => $customer->getEmail(),
-					'phone' => $customer->getPhone() ?? '',
-					'street' => $customer->getStreet() ?? '',
-					'city' => $customer->getCity() ?? '',
-					'zip' => (string) $customer->getZip(),
-					'companyName' => $customer->getCompanyName() ?? '',
-					'ic' => $customer->getIc() ?? '',
-				]);
+				$return->ready = true;
+				$return->firstName = $customer->getFirstName();
+				$return->lastName = $customer->getLastName();
+				$return->email = $customer->getEmail();
+				$return->phone = $customer->getPhone() ?? '';
+				$return->street = $customer->getStreet() ?? '';
+				$return->city = $customer->getCity() ?? '';
+				$return->zip = (string) $customer->getZip();
+				$return->companyName = $customer->getCompanyName() ?? '';
+				$return->ic = $customer->getIc() ?? '';
 			}
 		}
 
-		$this->sendJson($return);
+		return $return;
 	}
 
 
@@ -625,7 +620,7 @@ final class CartEndpoint extends BaseEndpoint
 	 * @param array<string, string> $userOptions
 	 * @param array<string, string> $availableParameters
 	 */
-	private function isVariantCompatibleWithOptions(array $userOptions, array $availableParameters): bool
+	private function isVariantCompatible(array $userOptions, array $availableParameters): bool
 	{
 		if ($userOptions === $availableParameters) {
 			return true;
