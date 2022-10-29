@@ -76,6 +76,7 @@ final class CartEndpoint extends BaseEndpoint
 		private EntityManager $entityManager,
 		private CurrencyManager $currencyManager,
 		private ProductRecommenderAccessor $productRecommender,
+		private User $userService,
 	) {
 		$productRepository = $entityManager->getRepository(Product::class);
 		$cartItemRepository = $entityManager->getRepository(CartItem::class);
@@ -483,7 +484,7 @@ final class CartEndpoint extends BaseEndpoint
 		}
 
 		return new CartCustomer(
-			loggedIn: $this->user->isLoggedIn(),
+			loggedIn: $this->userService->isLoggedIn(),
 			items: $items,
 			price: $cart->getPrice()->render(true),
 			itemsPrice: $cart->getItemsPrice()->render(true),
@@ -512,8 +513,8 @@ final class CartEndpoint extends BaseEndpoint
 	public function actionCustomerDefaultInfo(): CustomerDefaultInfoResponse
 	{
 		$return = new CustomerDefaultInfoResponse;
-		if ($this->user->isLoggedIn()) {
-			$identity = $this->user->getIdentityEntity();
+		if ($this->userService->isLoggedIn()) {
+			$identity = $this->userService->getIdentityEntity();
 			$customer = null;
 			if ($identity !== null) {
 				try {
