@@ -76,7 +76,6 @@ final class CartEndpoint extends BaseEndpoint
 		private EntityManager $entityManager,
 		private CurrencyManager $currencyManager,
 		private ProductRecommenderAccessor $productRecommender,
-		private User $user,
 	) {
 		$productRepository = $entityManager->getRepository(Product::class);
 		$cartItemRepository = $entityManager->getRepository(CartItem::class);
