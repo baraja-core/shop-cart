@@ -14,6 +14,7 @@ use Baraja\EcommerceStandard\DTO\PaymentInterface;
 use Baraja\EcommerceStandard\DTO\ProductInterface;
 use Baraja\EcommerceStandard\DTO\ProductVariantInterface;
 use Baraja\EcommerceStandard\Service\OrderManagerInterface;
+use Baraja\EcommerceStandard\Service\WarehouseManagerInterface;
 use Baraja\ImageGenerator\ImageGenerator;
 use Baraja\Shop\Cart\DTO\BuyResponse;
 use Baraja\Shop\Cart\DTO\CartCustomer;
@@ -77,6 +78,7 @@ final class CartEndpoint extends BaseEndpoint
 		private CurrencyManager $currencyManager,
 		private ProductRecommenderAccessor $productRecommender,
 		private User $userService,
+		private ?WarehouseManagerInterface $warehouseManager = null,
 	) {
 		$productRepository = $entityManager->getRepository(Product::class);
 		$cartItemRepository = $entityManager->getRepository(CartItem::class);
@@ -158,8 +160,8 @@ final class CartEndpoint extends BaseEndpoint
 				final: (new Price($price, $cart->getCurrency()))->render(),
 				withoutVat: (new Price($priceWithoutVat, $cart->getCurrency()))->render(),
 			),
-			delivery: $delivery !== null ? CartDeliveryItemResponse::fromEntity($cart, $delivery) : null,
-			payment: $payment !== null ? CartPaymentItemResponse::fromEntity($cart, $payment) : null,
+			delivery: $delivery !== null ? CartDeliveryItemResponse::fromEntity($cart->getCurrency(), $delivery) : null,
+			payment: $payment !== null ? CartPaymentItemResponse::fromEntity($cart->getCurrency(), $payment) : null,
 			related: $related,
 		);
 	}
@@ -254,6 +256,7 @@ final class CartEndpoint extends BaseEndpoint
 			dataLayer: $this->getDataLayer($product, $variantEntity),
 			variantList: $variantList,
 			variantsFeed: $variantsFeed,
+			productStatus: $this->warehouseManager?->getProductStatus($product, $variantEntity),
 		);
 	}
 
@@ -396,14 +399,14 @@ final class CartEndpoint extends BaseEndpoint
 			price: $cart->getItemsPrice()->render(true),
 			deliveries: array_map(
 				static fn(Delivery $delivery): CartDeliveryItemResponse => CartDeliveryItemResponse::fromEntity(
-					$cart,
+					$cart->getCurrency(),
 					$delivery,
 				),
 				$deliveries,
 			),
 			payments: array_map(
 				static fn(PaymentInterface $payment): CartPaymentItemResponse => CartPaymentItemResponse::fromEntity(
-					$cart,
+					$cart->getCurrency(),
 					$payment,
 				),
 				$cartDelivery !== null
@@ -489,8 +492,8 @@ final class CartEndpoint extends BaseEndpoint
 			price: $cart->getPrice()->render(true),
 			itemsPrice: $cart->getItemsPrice()->render(true),
 			deliveryPrice: $cart->getDeliveryPrice()->render(true),
-			delivery: CartDeliveryItemResponse::fromEntity($cart, $delivery),
-			payment: CartPaymentItemResponse::fromEntity($cart, $payment),
+			delivery: CartDeliveryItemResponse::fromEntity($cart->getCurrency(), $delivery),
+			payment: CartPaymentItemResponse::fromEntity($cart->getCurrency(), $payment),
 		);
 	}
 

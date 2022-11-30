@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Baraja\Shop\Cart\DTO;
 
 
+use Baraja\EcommerceStandard\DTO\WarehouseProductStatusInterface;
+
 final class CheckVariantStatusResponse
 {
 	/**
@@ -21,6 +23,7 @@ final class CheckVariantStatusResponse
 		public DataLayer $dataLayer,
 		public array $variantList,
 		public array $variantsFeed,
+		public ?WarehouseProductStatusInterface $productStatus = null,
 	) {
 	}
 }
